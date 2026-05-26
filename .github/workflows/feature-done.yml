@@ -1,1 +1,126 @@
+name: Feature Dokumentation
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  dokumentation:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Repository auschecken
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Geänderte Dateien ermitteln
+        id: changed
+        run: |
+          CHANGED=$(git diff --name-only HEAD~1 HEAD | tr '\n' ', ')
+          echo "files=$CHANGED" >> $GITHUB_OUTPUT
+          
+          # Branch-Name aus letztem Merge ermitteln
+          BRANCH=$(git log --merges -1 --pretty=format:'%s' | grep -o 'feature/[^'"'"']*' || echo 'unbekannt')
+          echo "branch=$BRANCH" >> $GITHUB_OUTPUT
+
+      - name: Dokumentation via Claude API generieren
+        id: doku
+        run: |
+          RESPONSE=$(curl -s https://api.anthropic.com/v1/messages \
+            -H "x-api-key: ${{ secrets.ANTHROPIC_API_KEY }}" \
+            -H "anthropic-version: 2023-06-01" \
+            -H "content-type: application/json" \
+            -d '{
+              "model": "claude-opus-4-5",
+              "max_tokens": 2000,
+              "messages": [{
+                "role": "user",
+                "content": "Du bist der Dokumentations-Agent für das Projekt Sentimental Logic (Prozessautomatisierung Versicherungsvertrieb für Melih Gül).\n\nEin neues Feature wurde in den main Branch gemergt.\n\nGeänderte Dateien: ${{ steps.changed.outputs.files }}\nBranch: ${{ steps.changed.outputs.branch }}\nDatum: '"$(date '+%d.%m.%Y')"'\n\nErstelle eine kompakte Feature-Dokumentation auf Deutsch mit folgenden Abschnitten:\n1. Was wurde gebaut (1-2 Sätze)\n2. Technische Umsetzung (Dateien, Funktionen)\n3. Testprotokoll (Checkliste)\n4. Nächste Schritte\n\nNur den Dokumentationstext ausgeben, kein Markdown-Wrapper."
+              }]
+            }')
+          
+          DOKU=$(echo $RESPONSE | python3 -c "import sys,json; print(json.load(sys.stdin)['content'][0]['text'])")
+          echo "text<<EOF" >> $GITHUB_OUTPUT
+          echo "$DOKU" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Dokumentation in Google Drive ablegen
+        run: |
+          DATUM=$(date '+%Y-%m-%d')
+          FEATURE=$(echo "${{ steps.changed.outputs.branch }}" | sed 's/feature\///')
+          FILENAME="Doku_${DATUM}_${FEATURE}.md"
+          
+          echo "${{ steps.doku.outputs.text }}" > /tmp/$FILENAME
+          
+          # Google Drive Upload via Service Account
+          python3 << 'PYTHON'
+          import os, json, base64
+          from google.oauth2 import service_account
+          from googleapiclient.discovery import build
+          from googleapiclient.http import MediaFileUpload
+
+          creds_json = os.environ.get('GOOGLE_SERVICE_ACCOUNT_KEY', '')
+          if not creds_json:
+              print("Kein Google Service Account Key — Drive Upload übersprungen")
+              exit(0)
+              
+          creds_data = json.loads(creds_json)
+          creds = service_account.Credentials.from_service_account_info(
+              creds_data,
+              scopes=['https://www.googleapis.com/auth/drive']
+          )
+          service = build('drive', 'v3', credentials=creds)
+          
+          import glob
+          files = glob.glob('/tmp/Doku_*.md')
+          if not files:
+              print("Keine Doku-Datei gefunden")
+              exit(0)
+              
+          filepath = files[0]
+          filename = os.path.basename(filepath)
+          
+          # In 05_Dokumentation Unterordner
+          file_metadata = {
+              'name': filename,
+              'parents': [os.environ['GOOGLE_DRIVE_FOLDER_ID']]
+          }
+          media = MediaFileUpload(filepath, mimetype='text/plain')
+          service.files().create(body=file_metadata, media_body=media).execute()
+          print(f"Doku abgelegt: {filename}")
+          PYTHON
+        env:
+          GOOGLE_SERVICE_ACCOUNT_KEY: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_KEY }}
+          GOOGLE_DRIVE_FOLDER_ID: ${{ secrets.GOOGLE_DRIVE_FOLDER_ID }}
+
+      - name: ClickUp Task aktualisieren
+        run: |
+          # Letzten erledigten Task auf "Dokumentiert" setzen
+          curl -s -X GET "https://api.clickup.com/api/v2/list/${{ secrets.CLICKUP_LIST_ID_PHASE1 }}/task?statuses[]=complete" \
+            -H "Authorization: ${{ secrets.CLICKUP_API_KEY }}" \
+            -H "Content-Type: application/json" \
+            | python3 -c "
+          import sys, json
+          data = json.load(sys.stdin)
+          tasks = data.get('tasks', [])
+          if tasks:
+              print(f'Letzter Task: {tasks[0][\"name\"]}')
+          "
+
+      - name: WhatsApp Benachrichtigung
+        if: always()
+        run: |
+          STATUS="${{ job.status }}"
+          FEATURE=$(echo "${{ steps.changed.outputs.branch }}" | sed 's/feature\///')
+          
+          if [ "$STATUS" = "success" ]; then
+            MSG="✅ Sentimental Logic: Feature '$FEATURE' dokumentiert und in Drive abgelegt."
+          else
+            MSG="⚠️ Sentimental Logic: Pipeline fehlgeschlagen bei '$FEATURE'. Bitte prüfen."
+          fi
+          
+          # CallMeBot WhatsApp
+          curl -s "https://api.callmebot.com/whatsapp.php?phone=${{ secrets.CALLMEBOT_PHONE }}&text=$(python3 -c "import urllib.parse; print(urllib.parse.quote('$MSG'))")&apikey=${{ secrets.CALLMEBOT_API_KEY }}"
 
