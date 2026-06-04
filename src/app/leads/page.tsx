@@ -103,12 +103,50 @@ function leadToForm(lead: MockLead & Record<string, unknown>): LeadFormData {
 const inputCls = 'w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#FFC300]/40 focus:border-[#FFC300] bg-white'
 const labelCls = 'block text-xs font-medium text-gray-500 mb-1'
 
+// ── Datum-Filter Optionen ────────────────────────────────────
+const DATE_FILTERS = [
+  { value: 'all', label: 'Alle' },
+  { value: 'today', label: 'Heute' },
+  { value: 'week', label: 'Diese Woche' },
+  { value: 'month', label: 'Diesen Monat' },
+]
+
+function matchesDateFilter(createdAt: string, filter: string): boolean {
+  if (filter === 'all') return true
+  const d = new Date(createdAt)
+  const now = new Date()
+  if (filter === 'today') {
+    return d.toDateString() === now.toDateString()
+  }
+  if (filter === 'week') {
+    const weekAgo = new Date(now); weekAgo.setDate(now.getDate() - 7)
+    return d >= weekAgo
+  }
+  if (filter === 'month') {
+    return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear()
+  }
+  return true
+}
+
+// Status-Farben für Inline-Dropdown
+const STATUS_DOT: Record<string, string> = {
+  new: 'bg-blue-400', contacted: 'bg-yellow-400',
+  qualified: 'bg-emerald-400', customer: 'bg-purple-400',
+}
+
 // ── Hauptkomponente ──────────────────────────────────────────
 export default function LeadsPage() {
   const [allLeads, setAllLeads] = useState<MockLead[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [activeFilter, setActiveFilter] = useState<LeadStatus | 'all'>('all')
+  // Flexibler Filter
+  const [filterOpen, setFilterOpen] = useState(false)
+  const [sourceFilters, setSourceFilters] = useState<string[]>([])
+  const [dateFilter, setDateFilter] = useState('all')
+  // Inline-Status
+  const [statusDropdownId, setStatusDropdownId] = useState<string | null>(null)
+  const [updatingStatusId, setUpdatingStatusId] = useState<string | null>(null)
 
   // Modal
   const [modalOpen, setModalOpen] = useState(false)
@@ -133,16 +171,56 @@ export default function LeadsPage() {
   }
   useEffect(() => { loadLeads() }, [])
 
+  // Dropdown schließen bei Klick außerhalb
+  useEffect(() => {
+    if (!statusDropdownId) return
+    const close = () => setStatusDropdownId(null)
+    document.addEventListener('click', close)
+    return () => document.removeEventListener('click', close)
+  }, [statusDropdownId])
+
   // Filtern
   const filtered = allLeads.filter((lead) => {
-    const matchesStatus = activeFilter === 'all' || lead.status === activeFilter
+    if (activeFilter !== 'all' && lead.status !== activeFilter) return false
+    if (sourceFilters.length > 0 && !sourceFilters.includes(lead.source)) return false
+    if (!matchesDateFilter(lead.created_at, dateFilter)) return false
     const q = search.toLowerCase()
-    return matchesStatus && (!q ||
+    if (q && !(
       `${lead.first_name} ${lead.last_name}`.toLowerCase().includes(q) ||
       (lead.email ?? '').toLowerCase().includes(q) ||
       (lead.company_name ?? '').toLowerCase().includes(q) ||
-      (lead.industry ?? '').toLowerCase().includes(q))
+      (lead.industry ?? '').toLowerCase().includes(q)
+    )) return false
+    return true
   })
+
+  const activeFilterCount = (sourceFilters.length > 0 ? 1 : 0) + (dateFilter !== 'all' ? 1 : 0)
+
+  function resetFilters() {
+    setSourceFilters([]); setDateFilter('all'); setActiveFilter('all'); setSearch('')
+  }
+
+  function toggleSourceFilter(src: string) {
+    setSourceFilters((prev) => prev.includes(src) ? prev.filter((s) => s !== src) : [...prev, src])
+  }
+
+  // Inline-Statusänderung
+  async function handleInlineStatusChange(lead: MockLead, newStatus: string) {
+    setStatusDropdownId(null)
+    setUpdatingStatusId(lead.id)
+    try {
+      const res = await fetch(`/api/leads/${lead.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: newStatus }),
+      })
+      const data = await res.json()
+      if (data.success) {
+        setAllLeads((prev) => prev.map((l) => l.id === lead.id ? { ...l, status: newStatus as LeadStatus } : l))
+      }
+    } catch (err) { console.error(err) }
+    finally { setUpdatingStatusId(null) }
+  }
 
   // Modal öffnen — Neu
   function openCreate() {
@@ -245,14 +323,37 @@ export default function LeadsPage() {
         </button>
       </div>
 
-      {/* Suche + Filter */}
-      <div className="flex flex-col sm:flex-row gap-3 mb-5">
-        <div className="relative flex-1">
-          <svg width="16" height="16" className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-          <input type="text" placeholder="Name, Firma, E-Mail suchen…" value={search} onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#FFC300]/40 focus:border-[#FFC300]" />
+      {/* ── Suche + Filter-Leiste ── */}
+      <div className="space-y-3 mb-5">
+        {/* Zeile 1: Suche + Filter-Button */}
+        <div className="flex gap-3">
+          <div className="relative flex-1">
+            <svg width="16" height="16" className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input type="text" placeholder="Name, Firma, E-Mail, Branche suchen…" value={search} onChange={(e) => setSearch(e.target.value)}
+              className="w-full pl-10 pr-4 py-2.5 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#FFC300]/40 focus:border-[#FFC300]" />
+          </div>
+          {/* Filter-Toggle */}
+          <button onClick={() => setFilterOpen(!filterOpen)}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium border transition-all ${filterOpen || activeFilterCount > 0 ? 'bg-[#1A1A1A] text-white border-[#1A1A1A]' : 'bg-white text-gray-600 border-gray-200 hover:border-gray-400'}`}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="4" y1="6" x2="20" y2="6"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="11" y1="18" x2="13" y2="18"/>
+            </svg>
+            Filter
+            {activeFilterCount > 0 && (
+              <span className="bg-[#FFC300] text-[#1A1A1A] text-xs font-bold w-4 h-4 rounded-full flex items-center justify-center">
+                {activeFilterCount}
+              </span>
+            )}
+          </button>
+          {(activeFilterCount > 0 || search) && (
+            <button onClick={resetFilters} className="text-sm text-gray-400 hover:text-red-500 px-3 transition-colors">
+              Zurücksetzen
+            </button>
+          )}
         </div>
-        <div className="flex gap-1.5 bg-white border border-gray-200 rounded-lg p-1">
+
+        {/* Zeile 2: Status-Tabs */}
+        <div className="flex gap-1.5 bg-white border border-gray-200 rounded-lg p-1 w-fit">
           {FILTERS.map((f) => {
             const count = f.value === 'all' ? allLeads.length : allLeads.filter((l) => l.status === f.value).length
             return (
@@ -263,6 +364,52 @@ export default function LeadsPage() {
             )
           })}
         </div>
+
+        {/* Erweiterter Filter-Panel */}
+        {filterOpen && (
+          <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Quelle */}
+              <div>
+                <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-3">Quelle</p>
+                <div className="flex flex-wrap gap-2">
+                  {SOURCE_OPTIONS.map((s) => {
+                    const active = sourceFilters.includes(s.value)
+                    const count = allLeads.filter((l) => l.source === s.value).length
+                    return (
+                      <button key={s.value} onClick={() => toggleSourceFilter(s.value)}
+                        className={`flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full border transition-all ${active ? 'bg-[#1A1A1A] text-white border-[#1A1A1A]' : 'bg-white text-gray-600 border-gray-200 hover:border-gray-400'}`}>
+                        {s.label}
+                        <span className={`${active ? 'text-white/60' : 'text-gray-400'}`}>{count}</span>
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+              {/* Zeitraum */}
+              <div>
+                <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-3">Zeitraum</p>
+                <div className="flex flex-wrap gap-2">
+                  {DATE_FILTERS.map((d) => (
+                    <button key={d.value} onClick={() => setDateFilter(d.value)}
+                      className={`text-xs font-medium px-3 py-1.5 rounded-full border transition-all ${dateFilter === d.value ? 'bg-[#1A1A1A] text-white border-[#1A1A1A]' : 'bg-white text-gray-600 border-gray-200 hover:border-gray-400'}`}>
+                      {d.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+            {/* Ergebnis-Zähler */}
+            <div className="mt-4 pt-4 border-t border-gray-100 flex items-center justify-between">
+              <p className="text-sm text-gray-500">
+                <span className="font-semibold text-[#1A1A1A]">{filtered.length}</span> von {allLeads.length} Leads entsprechen den Filtern
+              </p>
+              <button onClick={() => setFilterOpen(false)} className="text-xs text-gray-400 hover:text-[#1A1A1A] transition-colors">
+                Schließen
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Tabelle */}
@@ -325,10 +472,31 @@ export default function LeadsPage() {
                       {SOURCE_LABELS[lead.source] ?? lead.source}
                     </span>
                   </td>
+                  {/* Inline-Status — anklickbar */}
                   <td className="px-5 py-3.5">
-                    <span className={`inline-flex text-xs font-medium px-2.5 py-1 rounded-full ${STATUS_COLORS[lead.status] ?? 'bg-gray-100 text-gray-600'}`}>
-                      {STATUS_LABELS[lead.status] ?? lead.status}
-                    </span>
+                    <div className="relative">
+                      <button
+                        onClick={() => setStatusDropdownId(statusDropdownId === lead.id ? null : lead.id)}
+                        className={`inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full transition-all hover:ring-2 hover:ring-offset-1 hover:ring-gray-300 ${STATUS_COLORS[lead.status] ?? 'bg-gray-100 text-gray-600'} ${updatingStatusId === lead.id ? 'opacity-50' : ''}`}
+                        disabled={updatingStatusId === lead.id}
+                      >
+                        <span className={`w-1.5 h-1.5 rounded-full ${STATUS_DOT[lead.status] ?? 'bg-gray-400'}`} />
+                        {updatingStatusId === lead.id ? '…' : (STATUS_LABELS[lead.status] ?? lead.status)}
+                        <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="6 9 12 15 18 9"/></svg>
+                      </button>
+                      {statusDropdownId === lead.id && (
+                        <div className="absolute left-0 top-8 z-30 bg-white border border-gray-200 rounded-xl shadow-xl py-1 w-40 overflow-hidden">
+                          {STATUS_OPTIONS.map((s) => (
+                            <button key={s.value} onClick={() => handleInlineStatusChange(lead, s.value)}
+                              className={`w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-gray-50 transition-colors ${lead.status === s.value ? 'font-semibold text-[#1A1A1A]' : 'text-gray-600'}`}>
+                              <span className={`w-2 h-2 rounded-full ${STATUS_DOT[s.value]}`} />
+                              {s.label}
+                              {lead.status === s.value && <svg width="12" height="12" className="ml-auto text-[#FFC300]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg>}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   </td>
                   <td className="px-5 py-3.5 text-gray-500 text-xs">{new Date(lead.created_at).toLocaleDateString('de-DE')}</td>
                   <td className="px-5 py-3.5">
