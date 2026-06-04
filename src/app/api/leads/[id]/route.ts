@@ -62,26 +62,25 @@ export async function PATCH(
       if (ALLOWED_UPDATE_FIELDS.has(key)) raw[key] = value
     }
 
-    // Typ-Konvertierungen
-    if (raw.children !== undefined && raw.children !== null && raw.children !== '')
-      raw.children = parseInt(String(raw.children))
-    else if (raw.children === '') raw.children = null
+    // Leere Strings → null (PostgreSQL akzeptiert keine leeren Strings für Date/Int-Spalten)
+    for (const key of Object.keys(raw)) {
+      if (raw[key] === '') raw[key] = null
+    }
 
-    if (raw.founded_year !== undefined && raw.founded_year !== null && raw.founded_year !== '')
-      raw.founded_year = parseInt(String(raw.founded_year))
-    else if (raw.founded_year === '') raw.founded_year = null
+    // Zahlenfelder: String → Integer (oder null)
+    const INT_FIELDS = ['children', 'founded_year', 'employees', 'contact_count']
+    for (const f of INT_FIELDS) {
+      if (raw[f] != null) raw[f] = parseInt(String(raw[f])) || null
+    }
 
-    if (raw.employees !== undefined && raw.employees !== null && raw.employees !== '')
-      raw.employees = parseInt(String(raw.employees))
-    else if (raw.employees === '') raw.employees = null
-
+    // E-Mail normalisieren
     if (raw.email && typeof raw.email === 'string')
       raw.email = raw.email.trim().toLowerCase()
 
     // Enum-Validierung
-    if (raw.source && !VALID_SOURCES.includes(String(raw.source)))
+    if (raw.source != null && !VALID_SOURCES.includes(String(raw.source)))
       raw.source = 'manuell'
-    if (raw.status && !VALID_STATUSES.includes(String(raw.status)))
+    if (raw.status != null && !VALID_STATUSES.includes(String(raw.status)))
       delete raw.status
 
     if (Object.keys(raw).length === 0) {
