@@ -4,6 +4,7 @@
 import { NextRequest } from 'next/server'
 import { createServerClient } from '@/lib/supabase/server'
 import { syncLeadToKlicktipp, type LeadSyncData } from '@/lib/integrations/klicktipp'
+import { getFirstStageKey } from '@/lib/pipeline'
 import { Resend } from 'resend'
 
 const VALID_SOURCES = ['facebook', 'tiktok', 'calendly', 'csv', 'email', 'manuell']
@@ -281,6 +282,10 @@ export async function POST(request: NextRequest) {
     if (body.postal_code?.trim()) insertBase.postal_code = body.postal_code.trim()
     if (body.city?.trim()) insertBase.city = body.city.trim()
     if (body.country?.trim() && body.country.trim() !== 'Deutschland') insertBase.country = body.country.trim()
+
+    // Pipeline-Initialisierung (migration_v5) — neuer Lead startet bei Schritt 1
+    insertBase.pipeline_stage = getFirstStageKey()
+    insertBase.pipeline_steps = []
 
     // Erst mit Adressfeldern versuchen, bei Fehler ohne Adressfelder wiederholen
     let { data: lead, error: insertError } = await supabase

@@ -4,6 +4,7 @@
 // DELETE /api/leads/[id] — Lead löschen
 import { NextRequest } from 'next/server'
 import { createServerClient } from '@/lib/supabase/server'
+import { deriveStatusFromStage, getStageLabelByKey } from '@/lib/pipeline'
 
 // Nur diese Felder dürfen per PATCH aktualisiert werden
 const ALLOWED_UPDATE_FIELDS = new Set([
@@ -16,6 +17,7 @@ const ALLOWED_UPDATE_FIELDS = new Set([
   'source', 'status', 'notes',
   'first_contact_date', 'first_contact_channel', 'last_contact_date', 'next_contact', 'contact_count',
   'klicktipp_id', 'dialfire_id', 'research_data',
+  'pipeline_stage', 'pipeline_steps',
 ])
 
 const VALID_SOURCES = ['facebook', 'tiktok', 'calendly', 'csv', 'email', 'manuell']
@@ -89,6 +91,14 @@ export async function PATCH(
 
     // Felder aus optionalen Migrationen — werden beim Retry entfernt falls Spalten fehlen
     const MIGRATION_V2_FIELDS = ['street', 'postal_code', 'city', 'country']
+    const MIGRATION_V5_FIELDS = ['pipeline_stage', 'pipeline_steps']
+
+    // Wenn pipeline_stage gesetzt wird, Status automatisch ableiten
+    const pipelineStageChanged = raw.pipeline_stage !== undefined
+    if (pipelineStageChanged && raw.pipeline_stage) {
+      const derivedStatus = deriveStatusFromStage(String(raw.pipeline_stage))
+      raw.status = derivedStatus
+    }
 
     let { data, error } = await supabase
       .from('leads').update(raw).eq('id', id).select().single()
@@ -96,7 +106,8 @@ export async function PATCH(
     // Wenn Spalten fehlen (Migration nicht ausgeführt) → Retry ohne optionale Felder
     if (error && (error.code === '42703' || error.message.toLowerCase().includes('column'))) {
       console.warn('[PATCH] Optionale Spalten nicht vorhanden, Retry ohne Migration-Felder')
-      for (const f of MIGRATION_V2_FIELDS) delete raw[f]
+      const migrationsToRemove = [...MIGRATION_V2_FIELDS, ...MIGRATION_V5_FIELDS]
+      for (const f of migrationsToRemove) delete raw[f]
       const retry = await supabase.from('leads').update(raw).eq('id', id).select().single()
       data = retry.data
       error = retry.error
@@ -104,8 +115,18 @@ export async function PATCH(
 
     if (error) throw new Error(`Supabase Fehler: ${error.message}`)
 
-    // Status-Änderung protokollieren
-    if (raw.status) {
+    // Prozessschritt-Änderung protokollieren
+    if (pipelineStageChanged && raw.pipeline_stage) {
+      const stageLabel = getStageLabelByKey(String(raw.pipeline_stage))
+      void supabase.from('activities').insert({
+        lead_id: id,
+        type: 'status_change',
+        description: `➡️ Prozessschritt: ${stageLabel}`,
+      })
+    }
+
+    // Status-Änderung protokollieren (falls nicht durch Pipeline abgeleitet)
+    if (raw.status && !pipelineStageChanged) {
       void supabase.from('activities').insert({
         lead_id: id,
         type: 'status_change',

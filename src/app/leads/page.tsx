@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { STATUS_LABELS, STATUS_COLORS, SOURCE_LABELS, SOURCE_COLORS, type LeadStatus, type MockLead } from '@/data/mock'
+import { mergeSteps, type PipelineStage, DEFAULT_STAGES } from '@/lib/pipeline'
+import { ProcessBar } from '@/components/ProcessBar'
 
 // ── Konfiguration ────────────────────────────────────────────
 const FILTERS: { label: string; value: LeadStatus | 'all' }[] = [
@@ -138,6 +140,7 @@ const STATUS_DOT: Record<string, string> = {
 export default function LeadsPage() {
   const [allLeads, setAllLeads] = useState<MockLead[]>([])
   const [loading, setLoading] = useState(true)
+  const [pipelineStages, setPipelineStages] = useState<PipelineStage[]>(DEFAULT_STAGES)
   const [search, setSearch] = useState('')
   const [activeFilter, setActiveFilter] = useState<LeadStatus | 'all'>('all')
   // Flexibler Filter
@@ -169,7 +172,18 @@ export default function LeadsPage() {
       .catch(console.error)
       .finally(() => setLoading(false))
   }
-  useEffect(() => { loadLeads() }, [])
+
+  function loadPipelineStages() {
+    fetch('/api/pipeline-stages')
+      .then((r) => r.json())
+      .then((res) => { if (res.success) setPipelineStages(res.data) })
+      .catch(console.error)
+  }
+
+  useEffect(() => {
+    loadLeads()
+    loadPipelineStages()
+  }, [])
 
   // Dropdown schließen bei Klick außerhalb
   useEffect(() => {
@@ -418,16 +432,16 @@ export default function LeadsPage() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-gray-100 bg-gray-50/60">
-                {['Name', 'Firma', 'Branche', 'Quelle', 'Status', 'Erstellt', 'Aktionen'].map((h) => (
+                {['Name', 'Firma', 'Branche', 'Quelle', 'Status', 'Prozess', 'Erstellt', 'Aktionen'].map((h) => (
                   <th key={h} className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wide px-5 py-3">{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={7} className="text-center text-gray-400 py-16 text-sm">Leads werden geladen…</td></tr>
+                <tr><td colSpan={8} className="text-center text-gray-400 py-16 text-sm">Leads werden geladen…</td></tr>
               ) : filtered.length === 0 ? (
-                <tr><td colSpan={7} className="text-center py-16">
+                <tr><td colSpan={8} className="text-center py-16">
                   <p className="text-gray-400 text-sm">{allLeads.length === 0 ? 'Noch keine Leads vorhanden.' : 'Keine Leads gefunden.'}</p>
                   {allLeads.length === 0 && <button onClick={openCreate} className="mt-3 text-sm text-[#FFC300] font-medium hover:underline">+ Ersten Lead anlegen</button>}
                 </td></tr>
@@ -497,6 +511,19 @@ export default function LeadsPage() {
                         </div>
                       )}
                     </div>
+                  </td>
+                  {/* Prozess-Spalte */}
+                  <td className="px-5 py-3.5">
+                    {(() => {
+                      const pipelineStage = (lead as any).pipeline_stage
+                      const pipelineSteps = (lead as any).pipeline_steps ?? []
+                      if (!pipelineStage || pipelineStages.length === 0) {
+                        return <div className="text-sm text-gray-400">—</div>
+                      }
+                      const mergedSteps = mergeSteps(pipelineStages, pipelineSteps)
+                      const currentPosition = mergedSteps.findIndex(s => s.key === pipelineStage) + 1
+                      return <ProcessBar mergedSteps={mergedSteps} currentPosition={currentPosition > 0 ? currentPosition : null} />
+                    })()}
                   </td>
                   <td className="px-5 py-3.5 text-gray-500 text-xs">{new Date(lead.created_at).toLocaleDateString('de-DE')}</td>
                   <td className="px-5 py-3.5">

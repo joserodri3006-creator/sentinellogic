@@ -64,6 +64,9 @@ export interface MockLead {
   // Notizen
   notes?: string
   notes_updated_at?: string
+  // Pipeline (Prozessschritte)
+  pipeline_stage?: string
+  pipeline_steps?: Array<{ key: string; done: boolean; completed_at?: string; due_date?: string }>
   // Aktivitäten-Timeline
   activities?: MockActivity[]
 }
