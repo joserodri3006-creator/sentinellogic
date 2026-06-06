@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { STATUS_LABELS, STATUS_COLORS, SOURCE_LABELS, type MockLead } from '@/data/mock'
+import { mergeSteps, DEFAULT_STAGES, type PipelineStage } from '@/lib/pipeline'
+import { ProcessStepper } from '@/components/ProcessStepper'
 
 const ACTIVITY_ICONS: Record<string, React.ReactNode> = {
   sync: (
@@ -38,18 +40,24 @@ export default function LeadDetailPage() {
   // Lead aus echter Datenbank laden
   const [lead, setLead] = useState<MockLead | null>(null)
   const [loadingLead, setLoadingLead] = useState(true)
+  const [pipelineStages, setPipelineStages] = useState<PipelineStage[]>(DEFAULT_STAGES)
   const [notes, setNotes] = useState('')
   const [notesTimestamp, setNotesTimestamp] = useState<string | undefined>()
   const [prepModalOpen, setPrepModalOpen] = useState(false)
 
   useEffect(() => {
-    fetch(`/api/leads/${params.id}`)
-      .then((r) => r.json())
-      .then((res) => {
-        if (res.success) {
-          setLead(res.data)
-          setNotes(res.data.notes ?? '')
-          setNotesTimestamp(res.data.notes_updated_at)
+    Promise.all([
+      fetch(`/api/leads/${params.id}`).then((r) => r.json()),
+      fetch('/api/pipeline-stages').then((r) => r.json())
+    ])
+      .then(([leadRes, stagesRes]) => {
+        if (leadRes.success) {
+          setLead(leadRes.data)
+          setNotes(leadRes.data.notes ?? '')
+          setNotesTimestamp(leadRes.data.notes_updated_at)
+        }
+        if (stagesRes.success) {
+          setPipelineStages(stagesRes.data)
         }
       })
       .catch(console.error)
@@ -85,6 +93,23 @@ export default function LeadDetailPage() {
     }).catch(console.error)
     setNotesTimestamp(ts)
     setLead((prev) => prev ? { ...prev, notes, notes_updated_at: ts } : prev)
+  }
+
+  async function handlePipelineStageChange(newStageKey: string) {
+    if (!lead) return
+    try {
+      const res = await fetch(`/api/leads/${lead.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pipeline_stage: newStageKey }),
+      })
+      const data = await res.json()
+      if (data.success) {
+        setLead(data.data)
+      }
+    } catch (err) {
+      console.error('Fehler beim Ändern des Prozessschritts:', err)
+    }
   }
 
   const sectionCard = (title: string, children: React.ReactNode) => (
@@ -171,6 +196,16 @@ Einwand: "Ich muss das erst mit meinem Steuerberater besprechen."
       <div className="grid grid-cols-3 gap-4">
         {/* Linke Spalte (2/3) */}
         <div className="col-span-2 space-y-4">
+
+          {/* PROZESS-STEPPER — ganz oben */}
+          {lead.pipeline_stage && (
+            <ProcessStepper
+              mergedSteps={mergeSteps(pipelineStages, (lead as any).pipeline_steps ?? [])}
+              currentStageKey={lead.pipeline_stage}
+              onStageChange={handlePipelineStageChange}
+              loading={loadingLead}
+            />
+          )}
 
           {/* NOTIZEN — ganz oben, prominent */}
           {sectionCard('Notizen', (
