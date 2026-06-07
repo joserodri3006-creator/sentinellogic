@@ -62,6 +62,9 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // UUID-Validierung
+    const isValidUUID = (id: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)
+
     // Neue Opportunity anlegen
     const opportunityData = {
       contact_id: body.contact_id,

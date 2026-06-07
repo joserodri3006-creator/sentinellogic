@@ -74,12 +74,15 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // UUID-Validierung (einfaches Muster)
+    const isValidUUID = (id: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)
+
     // Neue Aufgabe anlegen
     const aufgabenData = {
       contact_id: body.contact_id,
       opportunity_id: body.opportunity_id ?? null,
-      assigned_user_id: body.assigned_user_id ?? null,
-      created_by_user_id: body.created_by_user_id ?? null,
+      assigned_user_id: body.assigned_user_id && isValidUUID(body.assigned_user_id) ? body.assigned_user_id : null,
+      created_by_user_id: body.created_by_user_id && isValidUUID(body.created_by_user_id) ? body.created_by_user_id : null,
       titel: String(body.titel).trim(),
       beschreibung: body.beschreibung ? String(body.beschreibung).trim() : null,
       status: VALID_STATUSES.includes(String(body.status ?? 'offen')) ? body.status : 'offen',
