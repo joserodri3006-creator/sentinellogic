@@ -1,7 +1,8 @@
 'use client'
-// Kontakte-Liste — zentrale Verwaltung aller Kontakte (Interessenten, Kunden, etc.)
+// Kontakte-Liste — zentrale Verwaltung aller Kontakte mit vollständiger CRUD
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import { KontaktEditModal } from '@/components/KontaktEditModal'
 
 interface Kontakt {
   id: string
@@ -43,6 +44,9 @@ export default function KontaktePage() {
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [activeFilter, setActiveFilter] = useState<string>('all')
+  const [editModalOpen, setEditModalOpen] = useState(false)
+  const [editingKontakt, setEditingKontakt] = useState<Kontakt | null>(null)
+  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null)
 
   useEffect(() => {
     loadKontakte()
@@ -68,14 +72,67 @@ export default function KontaktePage() {
     }
   }
 
+  async function handleSaveKontakt(formData: any) {
+    try {
+      const url = editingKontakt ? `/api/kontakte/${editingKontakt.id}` : '/api/kontakte'
+      const method = editingKontakt ? 'PATCH' : 'POST'
+
+      const res = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData),
+      })
+
+      if (!res.ok) {
+        const error = await res.json()
+        throw new Error(error.error || 'Fehler beim Speichern')
+      }
+
+      setEditingKontakt(null)
+      await loadKontakte()
+    } catch (err: any) {
+      throw err
+    }
+  }
+
+  async function handleDeleteKontakt(id: string) {
+    try {
+      const res = await fetch(`/api/kontakte/${id}`, { method: 'DELETE' })
+      if (!res.ok) throw new Error('Löschen fehlgeschlagen')
+      setDeleteConfirm(null)
+      await loadKontakte()
+    } catch (err) {
+      console.error('Fehler beim Löschen:', err)
+    }
+  }
+
+  async function handleStatusChange(kontaktId: string, newStatus: string) {
+    try {
+      const res = await fetch(`/api/kontakte/${kontaktId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: newStatus }),
+      })
+      if (res.ok) {
+        await loadKontakte()
+      }
+    } catch (err) {
+      console.error('Fehler bei Status-Änderung:', err)
+    }
+  }
+
   const filtered = kontakte.filter((k) => {
     if (activeFilter !== 'all' && k.status !== activeFilter) return false
     const q = search.toLowerCase()
-    if (q && !(
-      `${k.first_name} ${k.last_name}`.toLowerCase().includes(q) ||
-      (k.email ?? '').toLowerCase().includes(q) ||
-      (k.company_name ?? '').toLowerCase().includes(q)
-    )) return false
+    if (
+      q &&
+      !(
+        `${k.first_name} ${k.last_name}`.toLowerCase().includes(q) ||
+        (k.email ?? '').toLowerCase().includes(q) ||
+        (k.company_name ?? '').toLowerCase().includes(q)
+      )
+    )
+      return false
     return true
   })
 
@@ -87,7 +144,13 @@ export default function KontaktePage() {
           <h1 className="text-3xl font-bold text-gray-900">Kontakte</h1>
           <p className="text-gray-500 text-sm mt-0.5">{loading ? 'Lädt…' : `${kontakte.length} Kontakte gesamt`}</p>
         </div>
-        <button className="flex items-center gap-2 bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-semibold text-sm px-4 py-2.5 rounded-lg transition-colors">
+        <button
+          onClick={() => {
+            setEditingKontakt(null)
+            setEditModalOpen(true)
+          }}
+          className="flex items-center gap-2 bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-semibold text-sm px-4 py-2.5 rounded-lg transition-colors"
+        >
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <line x1="12" y1="5" x2="12" y2="19" />
             <line x1="5" y1="12" x2="19" y2="12" />
@@ -123,9 +186,7 @@ export default function KontaktePage() {
                 key={f.value}
                 onClick={() => setActiveFilter(f.value)}
                 className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${
-                  activeFilter === f.value
-                    ? 'bg-yellow-400 text-gray-900'
-                    : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'
+                  activeFilter === f.value ? 'bg-yellow-400 text-gray-900' : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'
                 }`}
               >
                 {f.label} <span className={`ml-1 text-xs ${activeFilter === f.value ? 'text-gray-700' : 'text-gray-400'}`}>{count}</span>
@@ -144,7 +205,6 @@ export default function KontaktePage() {
                 <th className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wide px-5 py-3">Name</th>
                 <th className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wide px-5 py-3">Firma</th>
                 <th className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wide px-5 py-3">Status</th>
-                <th className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wide px-5 py-3">Prozessschritt</th>
                 <th className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wide px-5 py-3">Erstellt</th>
                 <th className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wide px-5 py-3">Aktionen</th>
               </tr>
@@ -152,13 +212,13 @@ export default function KontaktePage() {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={6} className="text-center text-gray-400 py-16 text-sm">
+                  <td colSpan={5} className="text-center text-gray-400 py-16 text-sm">
                     Kontakte werden geladen…
                   </td>
                 </tr>
               ) : filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="text-center py-16">
+                  <td colSpan={5} className="text-center py-16">
                     <p className="text-gray-400 text-sm">{kontakte.length === 0 ? 'Noch keine Kontakte vorhanden.' : 'Keine Kontakte gefunden.'}</p>
                   </td>
                 </tr>
@@ -173,21 +233,51 @@ export default function KontaktePage() {
                     </td>
                     <td className="px-5 py-3.5 text-gray-600">{kontakt.company_name || '—'}</td>
                     <td className="px-5 py-3.5">
-                      <span className={`inline-flex text-xs font-medium px-2.5 py-1 rounded-full ${STATUS_COLORS[kontakt.status] ?? 'bg-gray-100 text-gray-600'}`}>
-                        {STATUS_LABELS[kontakt.status] ?? kontakt.status}
-                      </span>
+                      <select
+                        value={kontakt.status}
+                        onChange={(e) => handleStatusChange(kontakt.id, e.target.value)}
+                        className={`text-xs font-medium px-2.5 py-1 rounded-full border-0 cursor-pointer ${STATUS_COLORS[kontakt.status]}`}
+                      >
+                        {KONTAKT_FILTER.slice(1).map((s) => (
+                          <option key={s.value} value={s.value}>
+                            {s.label}
+                          </option>
+                        ))}
+                      </select>
                     </td>
-                    <td className="px-5 py-3.5 text-xs text-gray-500">{kontakt.pipeline_stage ? `Schritt ${kontakt.pipeline_stage}` : '—'}</td>
                     <td className="px-5 py-3.5 text-gray-500 text-xs">{new Date(kontakt.created_at).toLocaleDateString('de-DE')}</td>
                     <td className="px-5 py-3.5">
                       <div className="flex items-center gap-0.5">
-                        <Link href={`/kontakte/${kontakt.id}`} className="p-1.5 rounded-lg text-gray-400 hover:text-gray-900 hover:bg-gray-100 transition-all">
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <Link href={`/kontakte/${kontakt.id}`} className="p-1.5 rounded-lg text-gray-400 hover:text-gray-900 hover:bg-gray-100 transition-all" title="Öffnen">
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                             <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6" />
                             <polyline points="15 3 21 3 21 9" />
                             <line x1="10" y1="14" x2="21" y2="3" />
                           </svg>
                         </Link>
+                        <button
+                          onClick={() => {
+                            setEditingKontakt(kontakt)
+                            setEditModalOpen(true)
+                          }}
+                          className="p-1.5 rounded-lg text-gray-400 hover:text-gray-900 hover:bg-gray-100 transition-all"
+                          title="Bearbeiten"
+                        >
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
+                            <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
+                          </svg>
+                        </button>
+                        <button
+                          onClick={() => setDeleteConfirm(kontakt.id)}
+                          className="p-1.5 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition-all"
+                          title="Löschen"
+                        >
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <polyline points="3 6 5 6 21 6" />
+                            <path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" />
+                          </svg>
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -197,6 +287,43 @@ export default function KontaktePage() {
           </table>
         </div>
       </div>
+
+      {/* Edit Modal */}
+      <KontaktEditModal
+        kontakt={editingKontakt}
+        isOpen={editModalOpen}
+        onClose={() => {
+          setEditModalOpen(false)
+          setEditingKontakt(null)
+        }}
+        onSave={handleSaveKontakt}
+      />
+
+      {/* Delete Confirmation */}
+      {deleteConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6">
+            <h3 className="text-lg font-bold text-gray-900 mb-2">Kontakt löschen?</h3>
+            <p className="text-gray-600 text-sm mb-6">Dieser Kontakt und alle zugehörigen Aufgaben, Opportunities und Aktivitäten werden gelöscht. Dies kann nicht rückgängig gemacht werden.</p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setDeleteConfirm(null)}
+                className="flex-1 border border-gray-200 text-gray-600 font-medium text-sm px-4 py-2.5 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                Abbrechen
+              </button>
+              <button
+                onClick={() => {
+                  handleDeleteKontakt(deleteConfirm)
+                }}
+                className="flex-1 bg-red-600 hover:bg-red-700 text-white font-semibold text-sm px-4 py-2.5 rounded-lg transition-colors"
+              >
+                Ja, löschen
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

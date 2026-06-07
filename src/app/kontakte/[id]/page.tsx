@@ -1,8 +1,9 @@
 'use client'
 // Kontakt-Detail-Seite mit 6 Tabs: Übersicht, Aktivitäten, Aufgaben, Opportunities, Notizen, Dokumente
 import { useState, useEffect } from 'react'
-import { useParams } from 'next/navigation'
+import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { KontaktEditModal } from '@/components/KontaktEditModal'
 
 interface Kontakt {
   id: string
@@ -76,100 +77,22 @@ const TABS = [
   { id: 'documents', label: 'Dokumente', icon: '📄' },
 ]
 
-// Mock-Daten
-const MOCK_KONTAKTE: Record<string, Kontakt> = {
-  'c1': {
-    id: 'c1',
-    first_name: 'Max',
-    last_name: 'Mustermann',
-    email: 'max.mustermann@example.com',
-    phone_mobile: '+49 123 456789',
-    phone_office: '+49 40 123456',
-    company_name: 'Beispiel GmbH',
-    industry: 'Versicherungsgewerbe',
-    position: 'Geschäftsführer',
-    street: 'Beispielstraße 42',
-    postal_code: '20095',
-    city: 'Hamburg',
-    country: 'Deutschland',
-    website: 'https://beispiel.de',
-    status: 'qualified',
-    assigned_user_name: 'Max Mustermann',
-    qualität: 'Hoch',
-    bestandskunde: false,
-    notes: 'Sehr positives Feedback im Erstgespräch. Großes Potenzial für Altersvorsorge.',
-    created_at: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
-  },
-}
-
-const MOCK_AKTIVITÄTEN: Aktivität[] = [
-  {
-    id: '1',
-    type: 'status_change',
-    description: 'Status geändert: Kontaktiert → Qualifiziert',
-    created_at: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-  },
-  {
-    id: '2',
-    type: 'opportunity_created',
-    description: 'Neue Opportunity erstellt: Altersvorsorge (Rente)',
-    created_at: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
-  },
-  {
-    id: '3',
-    type: 'task_created',
-    description: 'Aufgabe erstellt: Finanzielle Situation analysieren',
-    created_at: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString(),
-  },
-  {
-    id: '4',
-    type: 'sync',
-    description: 'Kontakt mit KlickTipp synchronisiert',
-    created_at: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
-  },
-]
-
-const MOCK_AUFGABEN: Aufgabe[] = [
-  {
-    id: '1',
-    titel: 'Finanzielle Situation analysieren',
-    status: 'in_bearbeitung',
-    priorität: 'hoch',
-    fällig: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-    assigned_user_name: 'Laura Klein',
-  },
-  {
-    id: '2',
-    titel: 'Angebote für Altersvorsorge vorbereiten',
-    status: 'offen',
-    priorität: 'hoch',
-    fällig: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-    assigned_user_name: 'Max Mustermann',
-  },
-]
-
-const MOCK_OPPORTUNITIES: Opportunity[] = [
-  {
-    id: '1',
-    thema: 'Altersvorsorge (Rente)',
-    status: 'analyse',
-    wert: 25000,
-    fällig: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-  },
-]
-
 export default function KontaktDetailPage() {
   const params = useParams()
+  const router = useRouter()
   const kontaktId = params.id as string
 
   const [activeTab, setActiveTab] = useState('overview')
   const [kontakt, setKontakt] = useState<Kontakt | null>(null)
   const [loading, setLoading] = useState(true)
+  const [editModalOpen, setEditModalOpen] = useState(false)
   const [notesEditMode, setNotesEditMode] = useState(false)
   const [notes, setNotes] = useState('')
+  const [notesSaving, setNotesSaving] = useState(false)
   const [aktivitäten, setAktivitäten] = useState<Aktivität[]>([])
   const [aufgaben, setAufgaben] = useState<Aufgabe[]>([])
   const [opportunities, setOpportunities] = useState<Opportunity[]>([])
+  const [deleteConfirm, setDeleteConfirm] = useState(false)
 
   useEffect(() => {
     loadKontakt()
@@ -192,6 +115,64 @@ export default function KontaktDetailPage() {
       console.error('Fehler beim Laden des Kontakts:', err)
     } finally {
       setLoading(false)
+    }
+  }
+
+  async function handleSaveKontakt(formData: any) {
+    try {
+      const res = await fetch(`/api/kontakte/${kontaktId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData),
+      })
+      if (!res.ok) throw new Error('Fehler beim Speichern')
+      setEditModalOpen(false)
+      await loadKontakt()
+    } catch (err: any) {
+      throw err
+    }
+  }
+
+  async function handleSaveNotes() {
+    try {
+      setNotesSaving(true)
+      const res = await fetch(`/api/kontakte/${kontaktId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ notes }),
+      })
+      if (!res.ok) throw new Error('Fehler beim Speichern')
+      setNotesEditMode(false)
+      await loadKontakt()
+    } catch (err) {
+      console.error('Fehler:', err)
+    } finally {
+      setNotesSaving(false)
+    }
+  }
+
+  async function handleDeleteKontakt() {
+    try {
+      const res = await fetch(`/api/kontakte/${kontaktId}`, { method: 'DELETE' })
+      if (!res.ok) throw new Error('Fehler beim Löschen')
+      router.push('/kontakte')
+    } catch (err) {
+      console.error('Fehler beim Löschen:', err)
+    }
+  }
+
+  async function handleStatusChange(newStatus: string) {
+    try {
+      const res = await fetch(`/api/kontakte/${kontaktId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: newStatus }),
+      })
+      if (res.ok) {
+        await loadKontakt()
+      }
+    } catch (err) {
+      console.error('Fehler:', err)
     }
   }
 
@@ -225,15 +206,28 @@ export default function KontaktDetailPage() {
           <p className="text-gray-500 text-sm mt-1">{kontakt.company_name || 'Kein Unternehmen'}</p>
         </div>
         <div className="flex gap-2">
-          <span className={`inline-flex text-sm font-medium px-3 py-1.5 rounded-full ${STATUS_COLORS[kontakt.status]}`}>
-            {STATUS_LABELS[kontakt.status]}
-          </span>
-          <Link
-            href={`/kontakte/${kontakt.id}`}
+          <select
+            value={kontakt.status}
+            onChange={(e) => handleStatusChange(e.target.value)}
+            className={`text-sm font-medium px-3 py-2 rounded-lg border-0 cursor-pointer ${STATUS_COLORS[kontakt.status]}`}
+          >
+            <option value="new">Neu</option>
+            <option value="contacted">Kontaktiert</option>
+            <option value="qualified">Qualifiziert</option>
+            <option value="customer">Kunde</option>
+          </select>
+          <button
+            onClick={() => setEditModalOpen(true)}
             className="flex items-center gap-2 bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-semibold text-sm px-4 py-2 rounded-lg transition-colors"
           >
             Bearbeiten
-          </Link>
+          </button>
+          <button
+            onClick={() => setDeleteConfirm(true)}
+            className="flex items-center gap-2 bg-red-100 hover:bg-red-200 text-red-700 font-semibold text-sm px-4 py-2 rounded-lg transition-colors"
+          >
+            Löschen
+          </button>
         </div>
       </div>
 
@@ -245,9 +239,7 @@ export default function KontaktDetailPage() {
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
               className={`px-4 py-3 text-sm font-medium border-b-2 transition-all whitespace-nowrap ${
-                activeTab === tab.id
-                  ? 'text-yellow-600 border-yellow-600'
-                  : 'text-gray-600 border-transparent hover:text-gray-900'
+                activeTab === tab.id ? 'text-yellow-600 border-yellow-600' : 'text-gray-600 border-transparent hover:text-gray-900'
               }`}
             >
               {tab.icon} {tab.label}
@@ -269,17 +261,37 @@ export default function KontaktDetailPage() {
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <p className="text-xs text-gray-500 font-semibold uppercase">E-Mail</p>
-                      <p className="text-sm text-gray-900 mt-1">{kontakt.email || '—'}</p>
+                      <p className="text-sm text-gray-900 mt-1">
+                        <a href={`mailto:${kontakt.email}`} className="text-yellow-600 hover:underline">
+                          {kontakt.email}
+                        </a>
+                      </p>
                     </div>
                     <div>
                       <p className="text-xs text-gray-500 font-semibold uppercase">Telefon Mobil</p>
-                      <p className="text-sm text-gray-900 mt-1">{kontakt.phone_mobile || '—'}</p>
+                      <p className="text-sm text-gray-900 mt-1">
+                        {kontakt.phone_mobile ? (
+                          <a href={`tel:${kontakt.phone_mobile}`} className="text-yellow-600 hover:underline">
+                            {kontakt.phone_mobile}
+                          </a>
+                        ) : (
+                          '—'
+                        )}
+                      </p>
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <p className="text-xs text-gray-500 font-semibold uppercase">Telefon Büro</p>
-                      <p className="text-sm text-gray-900 mt-1">{kontakt.phone_office || '—'}</p>
+                      <p className="text-sm text-gray-900 mt-1">
+                        {kontakt.phone_office ? (
+                          <a href={`tel:${kontakt.phone_office}`} className="text-yellow-600 hover:underline">
+                            {kontakt.phone_office}
+                          </a>
+                        ) : (
+                          '—'
+                        )}
+                      </p>
                     </div>
                     <div>
                       <p className="text-xs text-gray-500 font-semibold uppercase">Website</p>
@@ -288,7 +300,9 @@ export default function KontaktDetailPage() {
                           <a href={kontakt.website} target="_blank" rel="noopener noreferrer" className="text-yellow-600 hover:underline">
                             {kontakt.website.replace('https://', '')}
                           </a>
-                        ) : '—'}
+                        ) : (
+                          '—'
+                        )}
                       </p>
                     </div>
                   </div>
@@ -337,10 +351,6 @@ export default function KontaktDetailPage() {
                 </span>
               </div>
               <div className="bg-white rounded-xl border border-gray-200 p-4">
-                <p className="text-xs text-gray-500 font-semibold uppercase mb-2">Zugewiesen</p>
-                <p className="text-sm text-gray-900">{kontakt.assigned_user_name || '—'}</p>
-              </div>
-              <div className="bg-white rounded-xl border border-gray-200 p-4">
                 <p className="text-xs text-gray-500 font-semibold uppercase mb-2">Qualität</p>
                 <p className="text-sm text-gray-900">{kontakt.qualität || '—'}</p>
               </div>
@@ -363,22 +373,24 @@ export default function KontaktDetailPage() {
             {aktivitäten.length === 0 ? (
               <p className="text-gray-400 text-sm">Keine Aktivitäten vorhanden.</p>
             ) : (
-            <div className="space-y-4">
-              {aktivitäten.map((akt, i) => (
-                <div key={akt.id} className="flex gap-4">
-                  <div className="flex flex-col items-center">
-                    <div className="w-10 h-10 rounded-full bg-yellow-100 flex items-center justify-center text-yellow-600 font-bold flex-shrink-0">
-                      {i + 1}
+              <div className="space-y-4">
+                {aktivitäten.map((akt, i) => (
+                  <div key={akt.id} className="flex gap-4">
+                    <div className="flex flex-col items-center">
+                      <div className="w-10 h-10 rounded-full bg-yellow-100 flex items-center justify-center text-yellow-600 font-bold flex-shrink-0">
+                        {i + 1}
+                      </div>
+                      {i < aktivitäten.length - 1 && <div className="w-0.5 h-8 bg-gray-200 mt-2" />}
                     </div>
-                    {i < MOCK_AKTIVITÄTEN.length - 1 && <div className="w-0.5 h-8 bg-gray-200 mt-2" />}
+                    <div className="flex-1 pt-1">
+                      <p className="text-sm font-medium text-gray-900">{akt.description}</p>
+                      <p className="text-xs text-gray-400 mt-1">
+                        {new Date(akt.created_at).toLocaleDateString('de-DE', { hour: '2-digit', minute: '2-digit' })}
+                      </p>
+                    </div>
                   </div>
-                  <div className="flex-1 pt-1">
-                    <p className="text-sm font-medium text-gray-900">{akt.description}</p>
-                    <p className="text-xs text-gray-400 mt-1">{new Date(akt.created_at).toLocaleDateString('de-DE', { hour: '2-digit', minute: '2-digit' })}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
             )}
           </div>
         )}
@@ -388,9 +400,7 @@ export default function KontaktDetailPage() {
           <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
               <h2 className="text-lg font-semibold text-gray-900">Aufgaben für diesen Kontakt</h2>
-              <button className="text-yellow-600 hover:text-yellow-700 text-sm font-medium">
-                + Neue Aufgabe
-              </button>
+              <button className="text-yellow-600 hover:text-yellow-700 text-sm font-medium">+ Neue Aufgabe</button>
             </div>
             {aufgaben.length === 0 ? (
               <div className="p-6 text-center text-gray-400">
@@ -401,7 +411,7 @@ export default function KontaktDetailPage() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-gray-100 bg-gray-50">
-                      {['Titel', 'Status', 'Priorität', 'Fällig', 'Zugewiesen'].map((h) => (
+                      {['Titel', 'Status', 'Priorität', 'Fällig'].map((h) => (
                         <th key={h} className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wide px-6 py-3">
                           {h}
                         </th>
@@ -413,25 +423,28 @@ export default function KontaktDetailPage() {
                       <tr key={aufgabe.id} className="border-b border-gray-50 hover:bg-gray-50">
                         <td className="px-6 py-3.5 text-gray-900 font-medium">{aufgabe.titel}</td>
                         <td className="px-6 py-3.5">
-                          <span className={`inline-flex text-xs font-medium px-2.5 py-1 rounded-full ${
-                            aufgabe.status === 'offen' ? 'bg-red-100 text-red-800' :
-                            aufgabe.status === 'in_bearbeitung' ? 'bg-yellow-100 text-yellow-800' :
-                            'bg-emerald-100 text-emerald-800'
-                          }`}>
+                          <span
+                            className={`inline-flex text-xs font-medium px-2.5 py-1 rounded-full ${
+                              aufgabe.status === 'offen'
+                                ? 'bg-red-100 text-red-800'
+                                : aufgabe.status === 'in_bearbeitung'
+                                  ? 'bg-yellow-100 text-yellow-800'
+                                  : 'bg-emerald-100 text-emerald-800'
+                            }`}
+                          >
                             {aufgabe.status === 'offen' ? 'Offen' : aufgabe.status === 'in_bearbeitung' ? 'In Bearbeitung' : 'Erledigt'}
                           </span>
                         </td>
                         <td className="px-6 py-3.5">
-                          <span className={`text-xs font-bold ${
-                            aufgabe.priorität === 'hoch' ? 'text-red-600' :
-                            aufgabe.priorität === 'mittel' ? 'text-orange-600' :
-                            'text-gray-600'
-                          }`}>
+                          <span
+                            className={`text-xs font-bold ${
+                              aufgabe.priorität === 'hoch' ? 'text-red-600' : aufgabe.priorität === 'mittel' ? 'text-orange-600' : 'text-gray-600'
+                            }`}
+                          >
                             {aufgabe.priorität.charAt(0).toUpperCase() + aufgabe.priorität.slice(1)}
                           </span>
                         </td>
                         <td className="px-6 py-3.5 text-gray-600">{new Date(aufgabe.fällig).toLocaleDateString('de-DE')}</td>
-                        <td className="px-6 py-3.5 text-gray-600">{aufgabe.assigned_user_name || '—'}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -446,9 +459,7 @@ export default function KontaktDetailPage() {
           <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
               <h2 className="text-lg font-semibold text-gray-900">Opportunities für diesen Kontakt</h2>
-              <button className="text-yellow-600 hover:text-yellow-700 text-sm font-medium">
-                + Neue Opportunity
-              </button>
+              <button className="text-yellow-600 hover:text-yellow-700 text-sm font-medium">+ Neue Opportunity</button>
             </div>
             {opportunities.length === 0 ? (
               <div className="p-6 text-center text-gray-400">
@@ -471,9 +482,7 @@ export default function KontaktDetailPage() {
                       <tr key={opp.id} className="border-b border-gray-50 hover:bg-gray-50">
                         <td className="px-6 py-3.5 text-gray-900 font-medium">{opp.thema}</td>
                         <td className="px-6 py-3.5">
-                          <span className="inline-flex text-xs font-medium px-2.5 py-1 rounded-full bg-purple-100 text-purple-800">
-                            {opp.status}
-                          </span>
+                          <span className="inline-flex text-xs font-medium px-2.5 py-1 rounded-full bg-purple-100 text-purple-800">{opp.status}</span>
                         </td>
                         <td className="px-6 py-3.5 text-gray-900 font-semibold">{opp.wert ? `${(opp.wert / 1000).toFixed(0)}K €` : '—'}</td>
                         <td className="px-6 py-3.5 text-gray-600">{opp.fällig ? new Date(opp.fällig).toLocaleDateString('de-DE') : '—'}</td>
@@ -500,10 +509,11 @@ export default function KontaktDetailPage() {
                 />
                 <div className="flex gap-2">
                   <button
-                    onClick={() => setNotesEditMode(false)}
-                    className="flex-1 bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-semibold text-sm px-4 py-2.5 rounded-lg transition-colors"
+                    onClick={handleSaveNotes}
+                    disabled={notesSaving}
+                    className="flex-1 bg-yellow-400 hover:bg-yellow-500 disabled:opacity-50 disabled:cursor-not-allowed text-gray-900 font-semibold text-sm px-4 py-2.5 rounded-lg transition-colors"
                   >
-                    Speichern
+                    {notesSaving ? 'Speichert…' : 'Speichern'}
                   </button>
                   <button
                     onClick={() => {
@@ -519,18 +529,11 @@ export default function KontaktDetailPage() {
             ) : (
               <div>
                 {notes ? (
-                  <div className="bg-gray-50 rounded-lg p-4 whitespace-pre-wrap text-sm text-gray-700 mb-4">
-                    {notes}
-                  </div>
+                  <div className="bg-gray-50 rounded-lg p-4 whitespace-pre-wrap text-sm text-gray-700 mb-4">{notes}</div>
                 ) : (
-                  <div className="bg-gray-50 rounded-lg p-4 text-sm text-gray-400 mb-4">
-                    Keine Notizen vorhanden.
-                  </div>
+                  <div className="bg-gray-50 rounded-lg p-4 text-sm text-gray-400 mb-4">Keine Notizen vorhanden.</div>
                 )}
-                <button
-                  onClick={() => setNotesEditMode(true)}
-                  className="text-yellow-600 hover:text-yellow-700 text-sm font-medium"
-                >
+                <button onClick={() => setNotesEditMode(true)} className="text-yellow-600 hover:text-yellow-700 text-sm font-medium">
                   Bearbeiten
                 </button>
               </div>
@@ -551,9 +554,6 @@ export default function KontaktDetailPage() {
               </div>
               <p className="text-gray-900 font-medium mb-1">Google Drive Integration</p>
               <p className="text-sm text-gray-500 mb-4">Phase 2 — Dokumente automatisch aus Google Drive verknüpfen</p>
-              <button className="text-yellow-600 hover:text-yellow-700 text-sm font-medium">
-                Konfigurieren →
-              </button>
             </div>
           </div>
         )}
@@ -565,6 +565,38 @@ export default function KontaktDetailPage() {
           ← Zurück zur Übersicht
         </Link>
       </div>
+
+      {/* Edit Modal */}
+      <KontaktEditModal
+        kontakt={kontakt}
+        isOpen={editModalOpen}
+        onClose={() => setEditModalOpen(false)}
+        onSave={handleSaveKontakt}
+      />
+
+      {/* Delete Confirmation */}
+      {deleteConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6">
+            <h3 className="text-lg font-bold text-gray-900 mb-2">Kontakt löschen?</h3>
+            <p className="text-gray-600 text-sm mb-6">Dieser Kontakt und alle zugehörigen Aufgaben, Opportunities und Aktivitäten werden gelöscht. Dies kann nicht rückgängig gemacht werden.</p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setDeleteConfirm(false)}
+                className="flex-1 border border-gray-200 text-gray-600 font-medium text-sm px-4 py-2.5 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                Abbrechen
+              </button>
+              <button
+                onClick={handleDeleteKontakt}
+                className="flex-1 bg-red-600 hover:bg-red-700 text-white font-semibold text-sm px-4 py-2.5 rounded-lg transition-colors"
+              >
+                Ja, löschen
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
