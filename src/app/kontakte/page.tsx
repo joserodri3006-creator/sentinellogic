@@ -106,6 +106,33 @@ export default function KontaktePage() {
     }
   }
 
+  async function handleCopyKontakt(kontakt: Kontakt) {
+    try {
+      const copiedData = {
+        ...kontakt,
+        first_name: `${kontakt.first_name} (Kopie)`,
+      }
+      delete (copiedData as any).id
+      delete (copiedData as any).created_at
+
+      const res = await fetch('/api/kontakte', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(copiedData),
+      })
+
+      if (!res.ok) {
+        const error = await res.json()
+        alert(`Fehler beim Kopieren: ${error.error}`)
+      } else {
+        await loadKontakte()
+      }
+    } catch (err) {
+      console.error('Fehler beim Kopieren:', err)
+      alert('Fehler beim Kopieren des Kontakts')
+    }
+  }
+
   async function handleStatusChange(kontaktId: string, newStatus: string) {
     try {
       const res = await fetch(`/api/kontakte/${kontaktId}`, {
@@ -265,24 +292,24 @@ export default function KontaktePage() {
                     <td className="px-5 py-3.5 text-gray-500 text-xs">{new Date(kontakt.created_at).toLocaleDateString('de-DE')}</td>
                     <td className="px-5 py-3.5">
                       <div className="flex items-center gap-0.5">
-                        <Link href={`/kontakte/${kontakt.id}`} className="p-1.5 rounded-lg text-gray-400 hover:text-gray-900 hover:bg-gray-100 transition-all" title="Öffnen">
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6" />
-                            <polyline points="15 3 21 3 21 9" />
-                            <line x1="10" y1="14" x2="21" y2="3" />
-                          </svg>
-                        </Link>
-                        <button
-                          onClick={() => {
-                            setEditingKontakt(kontakt)
-                            setEditModalOpen(true)
-                          }}
+                        <Link
+                          href={`/kontakte/${kontakt.id}`}
                           className="p-1.5 rounded-lg text-gray-400 hover:text-gray-900 hover:bg-gray-100 transition-all"
-                          title="Bearbeiten"
+                          title="Bearbeiten & Details"
                         >
                           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                             <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
                             <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
+                          </svg>
+                        </Link>
+                        <button
+                          onClick={() => handleCopyKontakt(kontakt)}
+                          className="p-1.5 rounded-lg text-gray-400 hover:text-yellow-600 hover:bg-yellow-50 transition-all"
+                          title="Kopieren"
+                        >
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
                           </svg>
                         </button>
                         <button

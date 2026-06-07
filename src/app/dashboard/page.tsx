@@ -1,5 +1,5 @@
 'use client'
-// Dashboard — KPI-Kacheln + Leads-Tabelle + CSV-Import Modal
+// Dashboard — KPI-Kacheln + Kontakte-Tabelle + CSV-Import Modal
 import { useState, useRef, useEffect } from 'react'
 import Link from 'next/link'
 import { STATUS_LABELS, STATUS_COLORS, SOURCE_LABELS, SOURCE_COLORS } from '@/data/mock'
@@ -32,7 +32,7 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    fetch('/api/leads?limit=5')
+    fetch('/api/kontakte?limit=5')
       .then((r) => r.json())
       .then((res) => { if (res.success) setLeads(res.data) })
       .catch(console.error)
@@ -107,7 +107,7 @@ export default function DashboardPage() {
       if (!lead.source) lead.source = 'csv'
 
       try {
-        const res = await fetch('/api/leads', {
+        const res = await fetch('/api/kontakte', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(lead),
@@ -147,8 +147,8 @@ export default function DashboardPage() {
     setImportLoading(false)
     setImportDone(true)
 
-    // Dashboard-Leads nach Import neu laden
-    fetch('/api/leads?limit=5').then((r) => r.json()).then((res) => {
+    // Dashboard-Kontakte nach Import neu laden
+    fetch('/api/kontakte?limit=5').then((r) => r.json()).then((res) => {
       if (res.success) setLeads(res.data)
     }).catch(() => {})
   }
@@ -210,11 +210,11 @@ export default function DashboardPage() {
         ))}
       </div>
 
-      {/* Leads-Tabelle */}
+      {/* Kontakte-Tabelle */}
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-          <h2 className="font-semibold text-[#1A1A1A]">Neueste Leads</h2>
-          <Link href="/leads" className="text-sm text-[#FFC300] hover:underline font-medium">
+          <h2 className="font-semibold text-[#1A1A1A]">Neueste Kontakte</h2>
+          <Link href="/kontakte" className="text-sm text-[#FFC300] hover:underline font-medium">
             Alle anzeigen →
           </Link>
         </div>
@@ -257,7 +257,7 @@ export default function DashboardPage() {
                   </td>
                   <td className="px-6 py-3.5">
                     <Link
-                      href={`/leads/${lead.id}`}
+                      href={`/kontakte/${lead.id}`}
                       className="inline-flex items-center gap-1.5 text-xs font-semibold bg-[#FFC300]/10 text-[#1A1A1A] hover:bg-[#FFC300]/20 px-3 py-1.5 rounded-lg transition-colors"
                     >
                       Öffnen →
@@ -275,7 +275,7 @@ export default function DashboardPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100">
-              <h2 className="text-lg font-bold text-[#1A1A1A]">Leads importieren (CSV)</h2>
+              <h2 className="text-lg font-bold text-[#1A1A1A]">Kontakte importieren (CSV)</h2>
               <button onClick={closeModal} className="text-gray-400 hover:text-gray-600 transition-colors">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />

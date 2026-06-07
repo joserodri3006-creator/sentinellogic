@@ -56,18 +56,46 @@ export async function POST(request: NextRequest) {
     // E-Mail normalisieren
     const email = String(body.email).trim().toLowerCase()
 
-    // Duplikatprüfung (E-Mail + Name)
-    const { data: existing } = await supabase
+    // Duplikatprüfung (E-Mail + Name — case-insensitive)
+    // Zuerst E-Mail prüfen
+    if (email) {
+      const { data: emailMatch } = await supabase
+        .from('contacts')
+        .select('id, first_name, last_name, email')
+        .ilike('email', email)
+        .limit(1)
+        .maybeSingle()
+
+      if (emailMatch) {
+        return Response.json(
+          {
+            success: false,
+            error: `Duplikat: Kontakt mit dieser E-Mail existiert bereits (${emailMatch.first_name} ${emailMatch.last_name}).`,
+            duplicate: true,
+            existing: emailMatch,
+          },
+          { status: 409 }
+        )
+      }
+    }
+
+    // Dann Name prüfen
+    const { data: nameMatch } = await supabase
       .from('contacts')
-      .select('id')
-      .eq('email', email)
+      .select('id, first_name, last_name, email')
       .eq('first_name', String(body.first_name).trim())
       .eq('last_name', String(body.last_name).trim())
-      .single()
+      .limit(1)
+      .maybeSingle()
 
-    if (existing) {
+    if (nameMatch) {
       return Response.json(
-        { success: false, error: 'Duplikat', duplicate: true },
+        {
+          success: false,
+          error: `Duplikat: Kontakt mit diesem Namen existiert bereits (${nameMatch.email || 'keine E-Mail'}).`,
+          duplicate: true,
+          existing: nameMatch,
+        },
         { status: 409 }
       )
     }
