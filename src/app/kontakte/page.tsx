@@ -58,6 +58,32 @@ const KONTAKT_FILTER = [
   { label: 'Kunde', value: 'customer' },
 ]
 
+const PIPELINE_STEPS = [
+  { key: 'lead_in', label: 'Lead kommt rein' },
+  { key: 'contacted', label: 'Lead wird kontaktiert' },
+  { key: 'data_gathering', label: 'Daten werden eingeholt' },
+  { key: 'wait_policies', label: 'Warten auf Policen' },
+  { key: 'calc_offers', label: 'Angebote berechnen' },
+  { key: 'download_offers', label: 'Angebote herunterladen & ablegen' },
+  { key: 'contract_overview', label: 'Vertragsübersicht erstellen' },
+  { key: 'send_offers', label: 'Angebote senden' },
+  { key: 'offer_meeting', label: 'Angebotsbesprechung (Termin)' },
+  { key: 'sales_talk', label: 'Verkaufsgespräch' },
+  { key: 'contracts_store', label: 'Verträge ablegen' },
+  { key: 'aftercare', label: 'Nachbereitung' },
+]
+
+function getStepLabel(stageKey?: string): string {
+  if (!stageKey) return '—'
+  const step = PIPELINE_STEPS.find(s => s.key === stageKey)
+  return step ? step.label : stageKey
+}
+
+function getStepNumber(stageKey?: string): number {
+  if (!stageKey) return 0
+  return (PIPELINE_STEPS.findIndex(s => s.key === stageKey) || 0) + 1
+}
+
 export default function KontaktePage() {
   const [kontakte, setKontakte] = useState<Kontakt[]>([])
   const [loading, setLoading] = useState(true)
@@ -251,7 +277,7 @@ export default function KontaktePage() {
                 <th className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wide px-5 py-3">Name</th>
                 <th className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wide px-5 py-3">Firma</th>
                 <th className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wide px-5 py-3">Quelle</th>
-                <th className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wide px-5 py-3">Status</th>
+                <th className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wide px-5 py-3">Aktueller Schritt</th>
                 <th className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wide px-5 py-3">Fortschritt</th>
                 <th className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wide px-5 py-3">Erstellt</th>
                 <th className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wide px-5 py-3">Aktionen</th>
@@ -286,31 +312,23 @@ export default function KontaktePage() {
                       </span>
                     </td>
                     <td className="px-5 py-3.5">
-                      <select
-                        value={kontakt.status}
-                        onChange={(e) => handleStatusChange(kontakt.id, e.target.value)}
-                        className={`text-xs font-medium px-2.5 py-1 rounded-full border-0 cursor-pointer ${STATUS_COLORS[kontakt.status]}`}
-                      >
-                        {KONTAKT_FILTER.slice(1).map((s) => (
-                          <option key={s.value} value={s.value}>
-                            {s.label}
-                          </option>
-                        ))}
-                      </select>
+                      <span className="text-xs text-gray-700 font-medium truncate max-w-xs block" title={getStepLabel(kontakt.pipeline_stage)}>
+                        {getStepLabel(kontakt.pipeline_stage)}
+                      </span>
                     </td>
                     <td className="px-5 py-3.5">
-                      {/* Prozessfortschritt Bar */}
+                      {/* 12-Schritt-Fortschrittsbalken */}
                       <div className="flex items-center gap-2">
-                        <div className="w-16 h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                        <div className="w-24 h-1.5 bg-gray-200 rounded-full overflow-hidden">
                           <div
                             className="h-full bg-yellow-400 rounded-full transition-all"
                             style={{
-                              width: kontakt.status === 'new' ? '25%' : kontakt.status === 'contacted' ? '50%' : kontakt.status === 'qualified' ? '75%' : '100%',
+                              width: `${(getStepNumber(kontakt.pipeline_stage) / 12) * 100}%`,
                             }}
                           />
                         </div>
-                        <span className="text-xs text-gray-500 font-medium">
-                          {kontakt.status === 'new' ? '1/4' : kontakt.status === 'contacted' ? '2/4' : kontakt.status === 'qualified' ? '3/4' : '4/4'}
+                        <span className="text-xs text-gray-500 font-medium whitespace-nowrap">
+                          {getStepNumber(kontakt.pipeline_stage)}/12
                         </span>
                       </div>
                     </td>
