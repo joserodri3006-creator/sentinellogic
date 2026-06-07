@@ -46,12 +46,17 @@ export default function KontaktePage() {
 
   useEffect(() => {
     loadKontakte()
-  }, [])
+  }, [activeFilter, search])
 
   async function loadKontakte() {
     try {
       setLoading(true)
-      const res = await fetch('/api/leads?limit=500')
+      const params = new URLSearchParams()
+      params.set('limit', '500')
+      if (activeFilter !== 'all') params.set('status', activeFilter)
+      if (search) params.set('search', search)
+
+      const res = await fetch(`/api/kontakte?${params.toString()}`)
       const json = await res.json()
       if (json.success) {
         setKontakte(json.data)

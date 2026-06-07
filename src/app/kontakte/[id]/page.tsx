@@ -167,21 +167,33 @@ export default function KontaktDetailPage() {
   const [loading, setLoading] = useState(true)
   const [notesEditMode, setNotesEditMode] = useState(false)
   const [notes, setNotes] = useState('')
+  const [aktivitäten, setAktivitäten] = useState<Aktivität[]>([])
+  const [aufgaben, setAufgaben] = useState<Aufgabe[]>([])
+  const [opportunities, setOpportunities] = useState<Opportunity[]>([])
 
   useEffect(() => {
-    // Lade Kontakt (Mock oder API)
-    const mockKontakt = MOCK_KONTAKTE[kontaktId] || {
-      id: kontaktId,
-      first_name: 'Unbekannt',
-      last_name: '',
-      email: '',
-      status: 'new' as const,
-      created_at: new Date().toISOString(),
-    }
-    setKontakt(mockKontakt)
-    setNotes(mockKontakt.notes || '')
-    setLoading(false)
+    loadKontakt()
   }, [kontaktId])
+
+  async function loadKontakt() {
+    try {
+      setLoading(true)
+      const res = await fetch(`/api/kontakte/${kontaktId}`)
+      const json = await res.json()
+      if (json.success) {
+        const data = json.data
+        setKontakt(data)
+        setNotes(data.notes || '')
+        setAktivitäten(data.activities || [])
+        setAufgaben(data.tasks || [])
+        setOpportunities(data.opportunities || [])
+      }
+    } catch (err) {
+      console.error('Fehler beim Laden des Kontakts:', err)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   if (loading) {
     return (
@@ -348,8 +360,11 @@ export default function KontaktDetailPage() {
         {activeTab === 'activities' && (
           <div className="bg-white rounded-xl border border-gray-200 p-6">
             <h2 className="text-lg font-semibold text-gray-900 mb-6">Aktivitätshistorie</h2>
+            {aktivitäten.length === 0 ? (
+              <p className="text-gray-400 text-sm">Keine Aktivitäten vorhanden.</p>
+            ) : (
             <div className="space-y-4">
-              {MOCK_AKTIVITÄTEN.map((akt, i) => (
+              {aktivitäten.map((akt, i) => (
                 <div key={akt.id} className="flex gap-4">
                   <div className="flex flex-col items-center">
                     <div className="w-10 h-10 rounded-full bg-yellow-100 flex items-center justify-center text-yellow-600 font-bold flex-shrink-0">
@@ -364,6 +379,7 @@ export default function KontaktDetailPage() {
                 </div>
               ))}
             </div>
+            )}
           </div>
         )}
 
@@ -376,7 +392,7 @@ export default function KontaktDetailPage() {
                 + Neue Aufgabe
               </button>
             </div>
-            {MOCK_AUFGABEN.length === 0 ? (
+            {aufgaben.length === 0 ? (
               <div className="p-6 text-center text-gray-400">
                 <p>Keine Aufgaben für diesen Kontakt.</p>
               </div>
@@ -393,7 +409,7 @@ export default function KontaktDetailPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {MOCK_AUFGABEN.map((aufgabe) => (
+                    {aufgaben.map((aufgabe) => (
                       <tr key={aufgabe.id} className="border-b border-gray-50 hover:bg-gray-50">
                         <td className="px-6 py-3.5 text-gray-900 font-medium">{aufgabe.titel}</td>
                         <td className="px-6 py-3.5">
@@ -434,7 +450,7 @@ export default function KontaktDetailPage() {
                 + Neue Opportunity
               </button>
             </div>
-            {MOCK_OPPORTUNITIES.length === 0 ? (
+            {opportunities.length === 0 ? (
               <div className="p-6 text-center text-gray-400">
                 <p>Keine Opportunities für diesen Kontakt.</p>
               </div>
@@ -451,7 +467,7 @@ export default function KontaktDetailPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {MOCK_OPPORTUNITIES.map((opp) => (
+                    {opportunities.map((opp) => (
                       <tr key={opp.id} className="border-b border-gray-50 hover:bg-gray-50">
                         <td className="px-6 py-3.5 text-gray-900 font-medium">{opp.thema}</td>
                         <td className="px-6 py-3.5">

@@ -109,10 +109,37 @@ const MOCK_OPPORTUNITIES: Opportunity[] = [
 ]
 
 export default function OpportunitiesPage() {
-  const [opportunities, setOpportunities] = useState<Opportunity[]>(MOCK_OPPORTUNITIES)
-  const [loading, setLoading] = useState(false)
+  const [opportunities, setOpportunities] = useState<Opportunity[]>([])
+  const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('all')
+
+  useEffect(() => {
+    loadOpportunities()
+  }, [statusFilter, search])
+
+  async function loadOpportunities() {
+    try {
+      setLoading(true)
+      const params = new URLSearchParams()
+      params.set('limit', '500')
+      if (statusFilter !== 'all') params.set('status', statusFilter)
+      if (search) params.set('search', search)
+
+      const res = await fetch(`/api/opportunities?${params.toString()}`)
+      const json = await res.json()
+      if (json.success) {
+        setOpportunities(json.data.map((o: any) => ({
+          ...o,
+          contact_name: o.contact ? `${o.contact.first_name} ${o.contact.last_name}` : '—',
+        })))
+      }
+    } catch (err) {
+      console.error('Fehler beim Laden der Opportunities:', err)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const isOverdue = (dueDate?: string) => {
     return dueDate && new Date(dueDate) < new Date()

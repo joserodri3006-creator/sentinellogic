@@ -108,11 +108,41 @@ const MOCK_AUFGABEN: Aufgabe[] = [
 ]
 
 export default function AufgabenPage() {
-  const [aufgaben, setAufgaben] = useState<Aufgabe[]>(MOCK_AUFGABEN)
-  const [loading, setLoading] = useState(false)
+  const [aufgaben, setAufgaben] = useState<Aufgabe[]>([])
+  const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('all')
   const [prioritätFilter, setPrioritätFilter] = useState<string>('all')
+
+  useEffect(() => {
+    loadAufgaben()
+  }, [statusFilter, prioritätFilter, search])
+
+  async function loadAufgaben() {
+    try {
+      setLoading(true)
+      const params = new URLSearchParams()
+      params.set('limit', '500')
+      if (statusFilter !== 'all') params.set('status', statusFilter)
+      if (prioritätFilter !== 'all') params.set('priorität', prioritätFilter)
+      if (search) params.set('search', search)
+
+      const res = await fetch(`/api/aufgaben?${params.toString()}`)
+      const json = await res.json()
+      if (json.success) {
+        // Mappings aus API-Response
+        setAufgaben(json.data.map((t: any) => ({
+          ...t,
+          contact_name: t.contact ? `${t.contact.first_name} ${t.contact.last_name}` : '—',
+          assigned_user_name: t.assigned_user?.name || '—',
+        })))
+      }
+    } catch (err) {
+      console.error('Fehler beim Laden der Aufgaben:', err)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const isOverdue = (dueDate: string) => {
     return new Date(dueDate) < new Date() && dueDate
