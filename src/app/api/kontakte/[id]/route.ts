@@ -181,6 +181,18 @@ export async function PATCH(
       // Fehler beim Aktivitätsloggen ignorieren
     }
 
+    // Log activity — wichtigste Änderungen tracken
+    if (data) {
+      const kontaktName = `${data.first_name} ${data.last_name}`
+      
+      // Pipeline-Stage-Wechsel loggen
+      if (raw.pipeline_stage && body.pipeline_stage !== undefined) {
+        const stage = PIPELINE_STEPS_DEF.find((s: any) => s.key === raw.pipeline_stage)
+        if (stage) {
+          await logPipelineStageChanged(id, kontaktName, "", String(raw.pipeline_stage), stage.label)
+        }
+      }
+    }
     return Response.json({ success: true, data })
   } catch (err) {
     console.error('[PATCH /api/kontakte/[id]] Fehler:', err)
