@@ -790,11 +790,6 @@ export default function KontaktDetailPage() {
       />
 
       {/* Neue Opportunity Modal */}
-        kontaktId={kontaktId}
-        isOpen={newOppModalOpen}
-        onClose={() => setNewOppModalOpen(false)}
-        onSave={handleCreateOpp}
-      />
     </div>
   )
 }
