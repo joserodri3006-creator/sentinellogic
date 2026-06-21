@@ -3,6 +3,8 @@
 import { useState, useRef, useEffect } from 'react'
 import Link from 'next/link'
 import { STATUS_LABELS, STATUS_COLORS, SOURCE_LABELS, SOURCE_COLORS } from '@/data/mock'
+import { getLatestRelease } from '@/data/release-notes'
+import { ReleaseNotificationBanner } from '@/components/ReleaseNotificationBanner'
 import type { MockLead } from '@/data/mock'
 
 // Spalten-Mapping für CSV-Import — alle verfügbaren Systemfelder
@@ -30,6 +32,7 @@ export default function DashboardPage() {
   // Echte Leads aus der Datenbank
   const [leads, setLeads] = useState<MockLead[]>([])
   const [loading, setLoading] = useState(true)
+  const [showBanner, setShowBanner] = useState(true)
 
   useEffect(() => {
     fetch('/api/kontakte?limit=5')
@@ -178,10 +181,21 @@ export default function DashboardPage() {
     { label: 'Abschlussquote', value: '23%', sub: 'Ø letzte 30 Tage', color: 'border-purple-400' },
   ]
 
+  const latestRelease = getLatestRelease()
+
   return (
-    <div className="p-8">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-8">
+    <div>
+      {/* Release Notes Banner */}
+      {showBanner && latestRelease && (
+        <ReleaseNotificationBanner
+          release={latestRelease}
+          onDismiss={() => setShowBanner(false)}
+        />
+      )}
+
+      <div className="p-8">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="text-2xl font-bold text-[#1A1A1A]">Dashboard</h1>
           <p className="text-gray-500 text-sm mt-0.5">Übersicht — Stand: heute, {new Date().toLocaleDateString('de-DE')}</p>
@@ -448,6 +462,7 @@ export default function DashboardPage() {
           </div>
         </div>
       )}
+      </div>
     </div>
   )
 }

@@ -151,9 +151,25 @@ export default function Sidebar() {
       </nav>
 
       {/* Footer */}
-      <div className="px-5 py-4 border-t border-white/10">
-        <p className="text-white/30 text-xs font-medium">Sentimental Logic</p>
-        <p className="text-white/20 text-xs mt-0.5">v0.1.0 — Prototyp</p>
+      <div className="px-5 py-4 border-t border-white/10 space-y-3">
+        <div>
+          <p className="text-white/30 text-xs font-medium">Sentimental Logic</p>
+          <div className="flex items-center gap-2 mt-1.5">
+            <p className="text-white/20 text-xs">v0.2.0 — MVP</p>
+            <a
+              href="/release-notes"
+              className="text-white/40 hover:text-[#FFC300] transition-colors group relative"
+              title="Was ist neu?"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10" />
+                <line x1="12" y1="16" x2="12" y2="12" />
+                <line x1="12" y1="8" x2="12.01" y2="8" />
+              </svg>
+              <span className="absolute -top-1 -right-1 w-2 h-2 bg-[#FFC300] rounded-full group-hover:animate-pulse" />
+            </a>
+          </div>
+        </div>
       </div>
     </aside>
   )
