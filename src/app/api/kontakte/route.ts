@@ -7,6 +7,13 @@ import { createServerClient } from '@/lib/supabase/server'
 const VALID_STATUSES = ['new', 'contacted', 'qualified', 'customer']
 const VALID_SOURCES = ['facebook', 'tiktok', 'calendly', 'csv', 'email', 'manuell']
 
+// Pipeline-Schritte für Init
+const PIPELINE_STEPS_DEF = [
+  'lead_in', 'contacted', 'data_gathering', 'wait_policies', 'calc_offers',
+  'download_offers', 'contract_overview', 'send_offers', 'offer_meeting',
+  'sales_talk', 'contracts_store', 'aftercare'
+]
+
 export async function GET(request: NextRequest) {
   try {
     const supabase = createServerClient()
@@ -100,6 +107,14 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Initialisiere Pipeline-Steps (alle Schritte als nicht erledigt)
+    const initialPipelineSteps = PIPELINE_STEPS_DEF.map(key => ({
+      key,
+      done: false,
+      completed_at: null,
+      due_date: null,
+    }))
+
     // Neue Kontakt anlegen
     const kontaktData = {
       first_name: String(body.first_name).trim(),
@@ -119,6 +134,8 @@ export async function POST(request: NextRequest) {
       status: VALID_STATUSES.includes(String(body.status ?? 'new')) ? body.status : 'new',
       assigned_user_id: body.assigned_user_id ?? null,
       notes: body.notes ? String(body.notes).trim() : null,
+      pipeline_stage: 'lead_in',
+      pipeline_steps: initialPipelineSteps,
     }
 
     const { data, error } = await supabase
