@@ -13,6 +13,7 @@ const ALLOWED_UPDATE_FIELDS = new Set([
   'source', 'status', 'notes',
   'assigned_user_id', 'qualität', 'bestandskunde',
   'pipeline_stage', 'pipeline_steps',
+  'klicktipp_id', 'klicktipp_tags', 'klicktipp_last_sync',
 ])
 
 const VALID_STATUSES = ['new', 'contacted', 'qualified', 'customer']

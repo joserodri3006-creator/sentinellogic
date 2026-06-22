@@ -27,6 +27,8 @@ export interface Contact {
   qualität?: string
   bestandskunde?: boolean
   klicktipp_id?: string
+  klicktipp_tags?: string[]
+  klicktipp_last_sync?: string
   dialfire_id?: string
   notes?: string
   notes_updated_at?: string

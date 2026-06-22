@@ -5,6 +5,36 @@ import { NextRequest } from 'next/server'
 import { createServerClient } from '@/lib/supabase/server'
 
 import { logContactCreated } from '@/lib/activities-logger'
+
+// Helper: Rufe Edge Function auf
+async function invokeEdgeFunction(functionName: string, payload: any) {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+
+  if (!supabaseUrl || !supabaseKey) {
+    console.warn('[invokeEdgeFunction] Missing env vars, skipping...')
+    return null
+  }
+
+  const url = `${supabaseUrl}/functions/v1/${functionName}`
+
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${supabaseKey}`,
+      },
+      body: JSON.stringify(payload),
+    })
+
+    const result = await res.json()
+    return result
+  } catch (err) {
+    console.error(`[invokeEdgeFunction] ${functionName} error:`, err)
+    return null
+  }
+}
 const VALID_STATUSES = ['new', 'contacted', 'qualified', 'customer']
 const VALID_SOURCES = ['facebook', 'tiktok', 'calendly', 'csv', 'email', 'manuell']
 
@@ -154,6 +184,42 @@ export async function POST(request: NextRequest) {
     if (data?.id) {
       await logContactCreated(data.id, `${data.first_name} ${data.last_name}`)
     }
+
+    // KlickTipp Sync: Wenn klicktipp_tag im Request, synce zu KlickTipp
+    if (body.klicktipp_tag && data?.id) {
+      try {
+        const syncResult = await invokeEdgeFunction('sync-to-klicktipp', {
+          email: data.email,
+          first_name: data.first_name,
+          last_name: data.last_name,
+          phone: data.phone_mobile,
+          tag: body.klicktipp_tag,
+          list_id: body.klicktipp_list_id,
+        })
+
+        if (syncResult?.success) {
+          const klicktippId = syncResult.klicktipp_id
+          const klicktippTag = syncResult.tag
+
+          // Speichere klicktipp_id + tag
+          await supabase
+            .from('contacts')
+            .update({
+              klicktipp_id: klicktippId,
+              klicktipp_tags: [klicktippTag],
+              klicktipp_last_sync: new Date().toISOString(),
+            })
+            .eq('id', data.id)
+
+          console.log(`[KlickTipp] Sync erfolgreich: ${data.email} -> ID: ${klicktippId}, Tag: ${klicktippTag}`)
+        } else {
+          console.warn(`[KlickTipp] Sync fehlgeschlagen für ${data.email}: ${syncResult?.error}`)
+        }
+      } catch (err) {
+        console.error(`[KlickTipp] Fehler beim Sync für ${data.email}:`, err)
+      }
+    }
+
     return Response.json({ success: true, data }, { status: 201 })
   } catch (err) {
     console.error('[POST /api/kontakte] Fehler:', err)
