@@ -216,6 +216,18 @@ export default function AufgabeDetailPage() {
               </div>
             </div>
 
+            {/* Kontakt (optional) */}
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">Kontakt (optional)</label>
+              <input
+                type="text"
+                value={form.contact?.first_name && form.contact?.last_name ? `${form.contact.first_name} ${form.contact.last_name}` : '—'}
+                disabled
+                className="w-full px-4 py-2.5 border border-gray-200 rounded-lg bg-gray-50 text-gray-500"
+              />
+              <p className="text-xs text-gray-400 mt-1">Kontakt wird in der Übersicht zugewiesen</p>
+            </div>
+
             {/* Buttons */}
             <div className="flex gap-3 pt-4 border-t border-gray-100">
               <button
