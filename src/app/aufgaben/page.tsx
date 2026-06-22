@@ -100,7 +100,10 @@ export default function AufgabenPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(form),
       })
-      if (!res.ok) throw new Error('Fehler beim Erstellen')
+      const json = await res.json()
+      if (!res.ok) {
+        throw new Error(json.error || 'Fehler beim Erstellen')
+      }
       setModalOpen(false)
       await loadAufgaben()
     } catch (err: any) {
