@@ -21,6 +21,55 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.3.1',
+    date: '2026-06-22',
+    title: 'Tasks UX: Clickable Rows & Detail Page',
+    summary: 'Vollständige Task-Verwaltung mit Detail-Seite, Status-Editing und verbesserter Navigation',
+    features: [
+      {
+        title: 'Aufgaben-Detail-Seite',
+        description:
+          'Neue `/aufgaben/[id]` Seite zum Anzeigen, Bearbeiten und Löschen einzelner Aufgaben. Edit-Mode mit allen Feldern (Titel, Beschreibung, Fällig, Priorität, Status).',
+        category: 'feature',
+        icon: '📄',
+      },
+      {
+        title: 'Status-Dropdown überall',
+        description:
+          'Status ist jetzt überall bearbeitbar: im Kontakt-Detail als Dropdown, in der Aufgabenliste als Dropdown. Änderungen werden sofort gespeichert.',
+        category: 'improvement',
+        icon: '⚡',
+      },
+      {
+        title: 'Klickbare Zeilen (Links)',
+        description:
+          'Kontakte & Aufgaben sind jetzt klickbar: Ganz Zeile führt zur Detail-Seite. Kontakt-Name wird in Aufgaben-Liste angezeigt.',
+        category: 'improvement',
+        icon: '🔗',
+      },
+      {
+        title: 'Aufgaben ohne Kontakt erstellen',
+        description:
+          'contact_id ist jetzt optional — Aufgaben können global erstellt werden (nicht nur pro Kontakt). Ideal für persönliche To-Dos.',
+        category: 'improvement',
+        icon: '✓',
+      },
+      {
+        title: 'Kontakt-Info in Aufgaben',
+        description:
+          'In der Aufgabenliste wird der zugehörige Kontakt angezeigt (mit Link). In der Detail-Seite kann man zum Kontakt navigieren.',
+        category: 'feature',
+        icon: '👤',
+      },
+    ],
+    breaking_changes: [],
+    known_issues: [
+      'User-Beziehung (assigned_user) noch nicht implementiert',
+      'Opportunity-Beziehung noch nicht implementiert',
+    ],
+    next_release_date: '2026-07-05',
+  },
+  {
     version: '0.3.0',
     date: '2026-06-22',
     title: 'Activity Logging & Audit Trail',
