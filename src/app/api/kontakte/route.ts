@@ -195,7 +195,7 @@ export async function POST(request: NextRequest) {
     // KlickTipp Sync: Wenn klicktipp_tag im Request, synce zu KlickTipp
     if (body.klicktipp_tag && data?.id) {
       try {
-        const syncResult = await invokeEdgeFunction('sync-to-klicktipp', {
+        const syncResult = await invokeEdgeFunction('bright-function', {
           email: data.email,
           first_name: data.first_name,
           last_name: data.last_name,
