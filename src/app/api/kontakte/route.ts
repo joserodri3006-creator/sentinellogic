@@ -83,6 +83,8 @@ export async function POST(request: NextRequest) {
     const supabase = createServerClient()
     const body = await request.json()
 
+    console.log('[POST /api/kontakte] Body:', { klicktipp_tag: body.klicktipp_tag, email: body.email })
+
     // Pflichtfelder
     if (!body.first_name || !body.last_name || !body.email) {
       return Response.json(
