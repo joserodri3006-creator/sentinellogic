@@ -644,11 +644,23 @@ export default function KontaktDetailPage() {
                   </thead>
                   <tbody>
                     {aufgaben.map((aufgabe) => (
-                      <tr key={aufgabe.id} className="border-b border-gray-50 hover:bg-gray-50">
-                        <td className="px-6 py-3.5 text-gray-900 font-medium">{aufgabe.titel}</td>
-                        <td className="px-6 py-3.5">
-                          <span
-                            className={`inline-flex text-xs font-medium px-2.5 py-1 rounded-full ${
+                      <tr
+                        key={aufgabe.id}
+                        className="border-b border-gray-50 hover:bg-gray-50 cursor-pointer"
+                        onClick={() => router.push(`/aufgaben/${aufgabe.id}`)}
+                      >
+                        <td className="px-6 py-3.5 text-yellow-600 font-medium hover:underline">{aufgabe.titel}</td>
+                        <td className="px-6 py-3.5" onClick={(e) => e.stopPropagation()}>
+                          <select
+                            value={aufgabe.status}
+                            onChange={(e) => {
+                              fetch(`/api/aufgaben/${aufgabe.id}`, {
+                                method: 'PATCH',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ status: e.target.value }),
+                              }).then(() => loadKontakt())
+                            }}
+                            className={`text-xs font-medium px-2 py-1 rounded-full border-0 cursor-pointer ${
                               aufgabe.status === 'offen'
                                 ? 'bg-red-100 text-red-800'
                                 : aufgabe.status === 'in_bearbeitung'
@@ -656,8 +668,10 @@ export default function KontaktDetailPage() {
                                   : 'bg-emerald-100 text-emerald-800'
                             }`}
                           >
-                            {aufgabe.status === 'offen' ? 'Offen' : aufgabe.status === 'in_bearbeitung' ? 'In Bearbeitung' : 'Erledigt'}
-                          </span>
+                            <option value="offen">Offen</option>
+                            <option value="in_bearbeitung">In Bearbeitung</option>
+                            <option value="erledigt">Erledigt</option>
+                          </select>
                         </td>
                         <td className="px-6 py-3.5">
                           <span

@@ -2,7 +2,7 @@
 import { useState } from 'react'
 
 interface Aufgabe {
-  contact_id: string
+  contact_id?: string
   opportunity_id?: string
   assigned_user_id?: string
   titel: string
@@ -13,7 +13,7 @@ interface Aufgabe {
 }
 
 interface Props {
-  kontaktId: string
+  kontaktId?: string
   isOpen: boolean
   onClose: () => void
   onSave: (aufgabe: Aufgabe) => Promise<void>

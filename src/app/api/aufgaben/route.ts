@@ -67,9 +67,9 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
 
     // Pflichtfelder
-    if (!body.contact_id || !body.titel || !body.fällig) {
+    if (!body.titel || !body.fällig) {
       return Response.json(
-        { success: false, error: 'Felder erforderlich: contact_id, titel, fällig' },
+        { success: false, error: 'Felder erforderlich: titel, fällig' },
         { status: 400 }
       )
     }

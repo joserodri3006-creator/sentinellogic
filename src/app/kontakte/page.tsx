@@ -298,10 +298,14 @@ export default function KontaktePage() {
                 </tr>
               ) : (
                 filtered.map((kontakt) => (
-                  <tr key={kontakt.id} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
+                  <tr
+                    key={kontakt.id}
+                    className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors cursor-pointer"
+                    onClick={() => window.location.href = `/kontakte/${kontakt.id}`}
+                  >
                     <td className="px-5 py-3.5">
                       <div>
-                        <p className="font-semibold text-gray-900">{kontakt.first_name} {kontakt.last_name}</p>
+                        <p className="font-semibold text-yellow-600 hover:underline">{kontakt.first_name} {kontakt.last_name}</p>
                         <p className="text-xs text-gray-400 mt-0.5">{kontakt.email || kontakt.id}</p>
                       </div>
                     </td>
