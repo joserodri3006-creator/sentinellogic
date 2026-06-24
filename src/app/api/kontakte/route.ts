@@ -227,6 +227,58 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Dialfire Sync: Kontakt zu Dialfire senden
+    if (data?.id) {
+      try {
+        const dialfireResult = await invokeEdgeFunction('send-to-dialfire', {
+          contact: {
+            id: data.id,
+            email: data.email,
+            first_name: data.first_name,
+            last_name: data.last_name,
+            phone_mobile: data.phone_mobile,
+            company_name: data.company_name,
+          },
+        })
+
+        if (dialfireResult?.success) {
+          const dialfireId = dialfireResult.dialfire_id
+
+          // Speichere dialfire_id in Supabase
+          await supabase
+            .from('contacts')
+            .update({
+              dialfire_id: dialfireId,
+              dialfire_external_ref: data.id,
+              dialfire_task_name: process.env.DIALFIRE_TASK_NAME || 'call',
+              dialfire_updated_at: new Date().toISOString(),
+            })
+            .eq('id', data.id)
+
+          console.log(`[Dialfire] Sync erfolgreich: ${data.email} -> ID: ${dialfireId}`)
+        } else {
+          console.warn(`[Dialfire] Sync fehlgeschlagen für ${data.email}: ${dialfireResult?.error}`)
+          // Speichere Error
+          await supabase
+            .from('contacts')
+            .update({
+              dialfire_sync_error: dialfireResult?.error || 'Unknown error',
+            })
+            .eq('id', data.id)
+        }
+      } catch (err) {
+        console.error(`[Dialfire] Fehler beim Sync für ${data.email}:`, err)
+        // Speichere Error (non-blocking)
+        await supabase
+          .from('contacts')
+          .update({
+            dialfire_sync_error: String(err),
+          })
+          .eq('id', data.id)
+          .catch(() => null) // Ignore update errors
+      }
+    }
+
     return Response.json({ success: true, data }, { status: 201 })
   } catch (err) {
     console.error('[POST /api/kontakte] Fehler:', err)

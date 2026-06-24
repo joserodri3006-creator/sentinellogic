@@ -1,0 +1,21 @@
+version: "3.8"
+
+services:
+  dialfire_dbsync2:
+    image: dialfire/dbsync2:latest
+    container_name: dialfire_sync
+    restart: unless-stopped
+    environment:
+      CAMPAIGN_ID: ${DIALFIRE_CAMPAIGN_ID}
+      CAMPAIGN_TOKEN: ${DIALFIRE_CAMPAIGN_TOKEN}
+      WEBHOOK_URL: ${WEBHOOK_URL}
+    command: >
+      dbsync2 --a webhook
+      --c ${DIALFIRE_CAMPAIGN_ID}
+      --ct ${DIALFIRE_CAMPAIGN_TOKEN}
+      --url ${WEBHOOK_URL}
+    networks:
+      - default
+
+networks:
+  default: {}
