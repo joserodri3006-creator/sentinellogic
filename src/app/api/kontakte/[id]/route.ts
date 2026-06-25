@@ -14,6 +14,7 @@ const ALLOWED_UPDATE_FIELDS = new Set([
   'assigned_user_id', 'qualität', 'bestandskunde',
   'pipeline_stage', 'pipeline_steps',
   'klicktipp_id', 'klicktipp_tags', 'klicktipp_last_sync',
+  'dialfire_id', 'dialfire_external_ref', 'dialfire_task_name', 'dialfire_updated_at', 'dialfire_sync_error',
 ])
 
 const VALID_STATUSES = ['new', 'contacted', 'qualified', 'customer']
