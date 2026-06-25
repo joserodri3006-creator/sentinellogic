@@ -93,16 +93,25 @@ export async function PATCH(request: NextRequest) {
       }
     }
 
+    // Get existing config ID first (should only be one)
+    const { data: existing } = await supabase
+      .from('facebook_sync_config')
+      .select('id')
+      .limit(1)
+      .single()
+
+    const configId = existing?.id || crypto.randomUUID()
+
     // Update or insert config
     const { data, error } = await supabase
       .from('facebook_sync_config')
       .upsert({
-        id: '00000000-0000-0000-0000-000000000000', // Use static ID for single config
+        id: configId,
         enabled,
         interval_type,
         next_sync_at: next_sync_at?.toISOString() || null,
         updated_at: new Date().toISOString(),
-      })
+      }, { onConflict: 'id' })
       .select()
       .single()
 
