@@ -92,7 +92,10 @@ export async function GET(request: NextRequest) {
 
     let synced = 0
     let skipped = 0
+    let updated = 0
     let errors = 0
+    const errorDetails: any[] = []
+    const duplicateDetails: any[] = []
 
     for (const lead of allLeads) {
       try {
@@ -104,11 +107,23 @@ export async function GET(request: NextRequest) {
 
         if (checkError && checkError.code !== 'PGRST116') {
           console.error(`Error checking lead ${lead.id}:`, checkError)
+          errorDetails.push({
+            lead_id: lead.id,
+            email: null,
+            error_message: `Duplicate check failed: ${checkError.message}`,
+          })
           errors++
           continue
         }
 
         if (existing) {
+          duplicateDetails.push({
+            facebook_id: lead.id,
+            email: null,
+            existing_contact_id: existing.id,
+            action: 'skipped',
+            reason: 'facebook_id already exists',
+          })
           skipped++
           continue
         }
@@ -126,7 +141,7 @@ export async function GET(request: NextRequest) {
           }
         }
 
-        // FIX 2: Email validation before duplicate check
+        // Email validation before duplicate check
         const hasValidEmail =
           contact.email && typeof contact.email === 'string' && contact.email.trim().length > 0
 
@@ -140,6 +155,11 @@ export async function GET(request: NextRequest) {
 
           if (error && error.code !== 'PGRST116') {
             console.error('Error checking existing email:', error)
+            errorDetails.push({
+              lead_id: lead.id,
+              email: contact.email,
+              error_message: `Email check failed: ${error.message}`,
+            })
             errors++
             continue
           }
@@ -158,10 +178,21 @@ export async function GET(request: NextRequest) {
 
           if (updateError) {
             console.error('Error updating contact with facebook_id:', updateError)
+            errorDetails.push({
+              lead_id: lead.id,
+              email: contact.email,
+              error_message: `Update failed: ${updateError.message}`,
+            })
             errors++
           } else {
             console.log(`✅ Updated contact ${existingByEmail.id} with Facebook ID`)
-            // FIX 3: Log activity for linked contact
+            duplicateDetails.push({
+              facebook_id: lead.id,
+              email: contact.email,
+              existing_contact_id: existingByEmail.id,
+              action: 'linked',
+              reason: 'email matched existing contact',
+            })
             await logActivity(
               null,
               existingByEmail.id,
@@ -172,7 +203,7 @@ export async function GET(request: NextRequest) {
                 form_id: formId,
               }
             )
-            skipped++
+            updated++
           }
           continue
         }
@@ -185,16 +216,27 @@ export async function GET(request: NextRequest) {
         if (insertError) {
           if (insertError.code === '23505') {
             console.log(`Duplicate facebook_id detected for ${lead.id}`)
+            duplicateDetails.push({
+              facebook_id: lead.id,
+              email: contact.email,
+              existing_contact_id: null,
+              action: 'skipped',
+              reason: 'race condition: facebook_id already inserted',
+            })
             skipped++
           } else {
             console.error(`Error inserting lead ${lead.id}:`, insertError)
+            errorDetails.push({
+              lead_id: lead.id,
+              email: contact.email,
+              error_message: insertError.message,
+            })
             errors++
           }
         } else if (insertedData && insertedData[0]) {
           const contactId = insertedData[0].id
           console.log(`✅ Contact ${contactId} created from Facebook lead ${lead.id}`)
 
-          // FIX 3: Log activity for new contact
           await logActivity(
             null,
             contactId,
@@ -204,6 +246,7 @@ export async function GET(request: NextRequest) {
               facebook_id: lead.id,
               form_id: formId,
               source: 'facebook',
+              branche: contact.branche || null,
             }
           )
 
@@ -216,22 +259,52 @@ export async function GET(request: NextRequest) {
         const errorMsg =
           leadError instanceof Error ? leadError.message : String(leadError)
         console.error(`Error processing lead ${lead.id}:`, errorMsg)
+        errorDetails.push({
+          lead_id: lead.id,
+          email: null,
+          error_message: errorMsg,
+        })
         errors++
       }
     }
 
+    // Log sync to sync_log table
+    const syncStatus = errors > 0 ? (synced > 0 ? 'partial' : 'error') : 'success'
+    const { error: syncLogError } = await supabase
+      .from('sync_log')
+      .insert([
+        {
+          source: 'facebook',
+          count: synced + updated,
+          duplicates_skipped: skipped,
+          status: syncStatus,
+          message: `Synced: ${synced}, Updated: ${updated}, Skipped: ${skipped}, Errors: ${errors}`,
+          lead_ids: [],
+          lead_names: [],
+          error_details: errorDetails,
+          duplicate_details: duplicateDetails,
+        },
+      ])
+
+    if (syncLogError) {
+      console.error('Error logging sync to sync_log:', syncLogError)
+    }
+
     console.log(
-      `✅ Sync completed! Synced: ${synced}, Skipped: ${skipped}, Errors: ${errors}`
+      `✅ Sync completed! Synced: ${synced}, Updated: ${updated}, Skipped: ${skipped}, Errors: ${errors}`
     )
 
     return new NextResponse(
       JSON.stringify({
-        success: true,
+        success: errors === 0 || synced > 0,
         totalFetched: allLeads.length,
         synced,
+        updated,
         skipped,
         errors,
-        message: `Successfully synced ${synced} contacts from Facebook`,
+        error_details: errorDetails,
+        duplicate_details: duplicateDetails,
+        message: `Successfully synced ${synced + updated} contacts from Facebook`,
       }),
       { status: 200 }
     )

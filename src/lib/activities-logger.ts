@@ -17,6 +17,7 @@ export type ActivityType =
   | 'dialfire_sync_failed'
   | 'facebook_imported'
   | 'facebook_linked'
+  | 'facebook_skipped_duplicate'
 
 interface ActivityData {
   [key: string]: any
