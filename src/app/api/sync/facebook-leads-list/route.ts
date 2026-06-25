@@ -93,6 +93,7 @@ export async function GET(request: NextRequest) {
       return {
         facebook_id: lead.id,
         facebook_created_time: lead.created_time,
+        source: 'facebook',
         first_name: contact.first_name || '',
         last_name: contact.last_name || '',
         email: contact.email || '',
@@ -101,6 +102,10 @@ export async function GET(request: NextRequest) {
         city: contact.city || '',
         state: contact.state || '',
         postcode: contact.postcode || '',
+        branche: contact.branche || '',
+        versicherungstyp: contact.versicherungstyp || '',
+        jahresumsatz: contact.jahresumsatz || '',
+        mitarbeiterzahl: contact.mitarbeiterzahl || '',
         raw_fields: lead.field_data,
       }
     })
