@@ -119,10 +119,16 @@ export async function POST(request: NextRequest) {
               errors.push(`Update failed for email ${contact.email}`)
             } else {
               console.log(`✅ Updated contact ${existingByEmail.id} with Facebook ID`)
-              await logActivity(null, existingByEmail.id, 'facebook_linked', 'Facebook lead linked to existing contact', {
-                facebook_id: leadGenId,
-                form_id: formId,
-              })
+              await logActivity(
+                null,
+                existingByEmail.id,
+                'facebook_linked',
+                'Facebook lead linked to existing contact',
+                {
+                  facebook_id: leadGenId,
+                  form_id: formId,
+                }
+              )
               leadsProcessed++
             }
             continue
@@ -143,9 +149,10 @@ export async function POST(request: NextRequest) {
             console.log(`✅ Contact ${contactId} created from Facebook lead ${leadGenId}`)
 
             await logActivity(
+              null,
               contactId,
               'facebook_imported',
-              `Lead imported from Facebook form`,
+              'Lead imported from Facebook form',
               {
                 facebook_id: leadGenId,
                 form_id: formId,
