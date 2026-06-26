@@ -239,8 +239,19 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Dialfire Sync: Kontakt zu Dialfire senden
+    // Dialfire Sync: Nur wenn Dialfire-Daten vorhanden
+    // Lade aktualisierte Daten nach Automation um dialfire_campaign_id zu checken
+    let updatedContact: any = null
     if (data?.id) {
+      const { data: contactData } = await supabase
+        .from('contacts')
+        .select('dialfire_campaign_id, dialfire_task_name_field')
+        .eq('id', data.id)
+        .single()
+      updatedContact = contactData
+    }
+
+    if (data?.id && (updatedContact?.dialfire_campaign_id || updatedContact?.dialfire_task_name_field)) {
       try {
         const dialfireResult = await invokeEdgeFunction('send-to-dialfire', {
           contact: {
