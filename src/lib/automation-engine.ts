@@ -77,7 +77,7 @@ export async function executeAutomation(
     }
 
     if (matchingRule.actions.klicktipp_tag) {
-      fieldsToSet.klicktipp_tags_field = [matchingRule.actions.klicktipp_tag]
+      fieldsToSet.klicktipp_tags = [matchingRule.actions.klicktipp_tag]
       fieldsSummary.klicktipp_tags = [matchingRule.actions.klicktipp_tag]
     }
 
