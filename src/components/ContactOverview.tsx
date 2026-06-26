@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, memo } from 'react'
 
 interface Kontakt {
   id: string
@@ -45,6 +45,58 @@ const STATUS_LABELS: Record<string, string> = {
   customer: 'Kunde',
 }
 
+interface FieldProps {
+  label: string
+  field: string
+  type?: string
+  options?: string[]
+  value: any
+  onChange: (field: string, value: any) => void
+  isEditing: boolean
+}
+
+const Field = memo(({ label, field, type = 'text', options, value, onChange, isEditing }: FieldProps) => {
+  if (!isEditing) {
+    return (
+      <div>
+        <p className="text-xs text-gray-500 font-semibold uppercase">{label}</p>
+        <p className="text-sm text-gray-900 mt-1">{value || '—'}</p>
+      </div>
+    )
+  }
+
+  if (type === 'select') {
+    return (
+      <div>
+        <p className="text-xs text-gray-500 font-semibold uppercase">{label}</p>
+        <select
+          value={value || ''}
+          onChange={(e) => onChange(field, e.target.value)}
+          className="w-full px-2 py-1 mt-1 text-sm border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-yellow-400"
+        >
+          <option value="">—</option>
+          {options?.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+        </select>
+      </div>
+    )
+  }
+
+  return (
+    <div>
+      <p className="text-xs text-gray-500 font-semibold uppercase">{label}</p>
+      <input
+        type={type}
+        value={value || ''}
+        onChange={(e) => onChange(field, type === 'number' ? (e.target.value ? parseInt(e.target.value) : null) : e.target.value)}
+        className="w-full px-2 py-1 mt-1 text-sm border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-yellow-400"
+        placeholder="—"
+      />
+    </div>
+  )
+})
+
+Field.displayName = 'Field'
+
 interface Props {
   kontakt: Kontakt
   onSave: (changes: Record<string, any>) => Promise<void>
@@ -78,46 +130,6 @@ export function ContactOverview({ kontakt, onSave, isEditing = false, onEditChan
 
   const getValue = (field: string) => editData[field] !== undefined ? editData[field] : kontakt[field as keyof Kontakt]
 
-  const Field = ({ label, field, type = 'text', options }: { label: string; field: string; type?: string; options?: string[] }) => {
-    if (!isEditing) {
-      return (
-        <div>
-          <p className="text-xs text-gray-500 font-semibold uppercase">{label}</p>
-          <p className="text-sm text-gray-900 mt-1">{getValue(field) || '—'}</p>
-        </div>
-      )
-    }
-
-    if (type === 'select') {
-      return (
-        <div>
-          <p className="text-xs text-gray-500 font-semibold uppercase">{label}</p>
-          <select
-            value={getValue(field) || ''}
-            onChange={(e) => handleChange(field, e.target.value)}
-            className="w-full px-2 py-1 mt-1 text-sm border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-yellow-400"
-          >
-            <option value="">—</option>
-            {options?.map(opt => <option key={opt} value={opt}>{opt}</option>)}
-          </select>
-        </div>
-      )
-    }
-
-    return (
-      <div>
-        <p className="text-xs text-gray-500 font-semibold uppercase">{label}</p>
-        <input
-          type={type}
-          value={getValue(field) || ''}
-          onChange={(e) => handleChange(field, type === 'number' ? (e.target.value ? parseInt(e.target.value) : null) : e.target.value)}
-          className="w-full px-2 py-1 mt-1 text-sm border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-yellow-400"
-          placeholder="—"
-        />
-      </div>
-    )
-  }
-
   return (
     <div className="space-y-6">
       {/* Section 1: Kontaktdaten */}
@@ -130,8 +142,8 @@ export function ContactOverview({ kontakt, onSave, isEditing = false, onEditChan
               <a href={`mailto:${kontakt.email}`} className="text-yellow-600 hover:underline">{kontakt.email}</a>
             </p>
           </div>
-          <Field label="Telefon Mobil" field="phone_mobile" />
-          <Field label="Telefon Büro" field="phone_office" />
+          <Field label="Telefon Mobil" field="phone_mobile" value={getValue('phone_mobile')} onChange={handleChange} isEditing={isEditing} />
+          <Field label="Telefon Büro" field="phone_office" value={getValue('phone_office')} onChange={handleChange} isEditing={isEditing} />
         </div>
         <div className="mt-4">
           <p className="text-xs text-gray-500 font-semibold uppercase">Quelle</p>
@@ -143,14 +155,14 @@ export function ContactOverview({ kontakt, onSave, isEditing = false, onEditChan
       <div className="bg-white rounded-xl border border-gray-200 p-6">
         <h3 className="text-sm font-semibold text-gray-900 mb-4">🏢 Unternehmen</h3>
         <div className="grid grid-cols-2 gap-4">
-          <Field label="Firma" field="company_name" />
-          <Field label="Position" field="position" />
-          <Field label="Branche" field="industry" />
-          <Field label="Website" field="website" type="url" />
-          <Field label="Jahresumsatz" field="jahresumsatz" />
-          <Field label="Mitarbeiterzahl" field="mitarbeitanzahl" type="number" />
+          <Field label="Firma" field="company_name" value={getValue('company_name')} onChange={handleChange} isEditing={isEditing} />
+          <Field label="Position" field="position" value={getValue('position')} onChange={handleChange} isEditing={isEditing} />
+          <Field label="Branche" field="industry" value={getValue('industry')} onChange={handleChange} isEditing={isEditing} />
+          <Field label="Website" field="website" type="url" value={getValue('website')} onChange={handleChange} isEditing={isEditing} />
+          <Field label="Jahresumsatz" field="jahresumsatz" value={getValue('jahresumsatz')} onChange={handleChange} isEditing={isEditing} />
+          <Field label="Mitarbeiterzahl" field="mitarbeitanzahl" type="number" value={getValue('mitarbeitanzahl')} onChange={handleChange} isEditing={isEditing} />
           <div className="col-span-2">
-            <Field label="Versicherungstyp" field="versicherungstyp" />
+            <Field label="Versicherungstyp" field="versicherungstyp" value={getValue('versicherungstyp')} onChange={handleChange} isEditing={isEditing} />
           </div>
         </div>
       </div>
@@ -159,11 +171,11 @@ export function ContactOverview({ kontakt, onSave, isEditing = false, onEditChan
       <div className="bg-white rounded-xl border border-gray-200 p-6">
         <h3 className="text-sm font-semibold text-gray-900 mb-4">📍 Adresse</h3>
         <div className="space-y-4">
-          <Field label="Straße" field="street" />
+          <Field label="Straße" field="street" value={getValue('street')} onChange={handleChange} isEditing={isEditing} />
           <div className="grid grid-cols-3 gap-4">
-            <Field label="PLZ" field="postal_code" />
-            <Field label="Ort" field="city" />
-            <Field label="Land" field="country" />
+            <Field label="PLZ" field="postal_code" value={getValue('postal_code')} onChange={handleChange} isEditing={isEditing} />
+            <Field label="Ort" field="city" value={getValue('city')} onChange={handleChange} isEditing={isEditing} />
+            <Field label="Land" field="country" value={getValue('country')} onChange={handleChange} isEditing={isEditing} />
           </div>
         </div>
       </div>
@@ -184,8 +196,8 @@ export function ContactOverview({ kontakt, onSave, isEditing = false, onEditChan
           </div>
 
           <div className="grid grid-cols-3 gap-4">
-            <Field label="Qualität" field="qualität" type="select" options={['kalt', 'warm', 'heiss', 'sehr-heiss']} />
-            <Field label="Verantwortlicher" field="assigned_user_name" />
+            <Field label="Qualität" field="qualität" type="select" options={['kalt', 'warm', 'heiss', 'sehr-heiss']} value={getValue('qualität')} onChange={handleChange} isEditing={isEditing} />
+            <Field label="Verantwortlicher" field="assigned_user_name" value={getValue('assigned_user_name')} onChange={handleChange} isEditing={isEditing} />
             {isEditing ? (
               <div className="flex items-end">
                 <label className="flex items-center gap-2 cursor-pointer">
