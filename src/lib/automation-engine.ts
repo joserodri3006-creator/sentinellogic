@@ -81,6 +81,11 @@ export async function executeAutomation(
       fieldsSummary.klicktipp_tags = [matchingRule.actions.klicktipp_tag]
     }
 
+    if (matchingRule.actions.set_status) {
+      fieldsToSet.status = matchingRule.actions.set_status
+      fieldsSummary.status = matchingRule.actions.set_status
+    }
+
     // Update contact with automated fields
     if (Object.keys(fieldsToSet).length > 0) {
       const { error: updateError } = await supabase
