@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
       iterations++
 
       const url = new URL(`https://graph.facebook.com/v18.0/${formId}/leads`)
-      url.searchParams.append('fields', 'id,created_time,field_data')
+      url.searchParams.append('fields', 'id,created_time,field_data,qualification_status')
       url.searchParams.append('limit', '100')
 
       if (after) {
@@ -319,9 +319,14 @@ export async function GET(request: NextRequest) {
   }
 }
 
-function mapFacebookFieldsToContact(fieldData: any[] = []): Record<string, any> {
+function mapFacebookFieldsToContact(fieldData: any[] = [], qualificationStatus?: string): Record<string, any> {
   const contact: Record<string, any> = {
     metadata: {},
+  }
+
+  // Store Facebook phase/qualification status
+  if (qualificationStatus) {
+    contact.facebook_phase = qualificationStatus
   }
 
   const fieldMap: Record<string, string> = {

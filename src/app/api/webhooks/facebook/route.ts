@@ -77,7 +77,7 @@ export async function POST(request: NextRequest) {
 
           // FIX 2: Use Authorization header instead of query parameter
           const leadResponse = await fetch(
-            `https://graph.facebook.com/v18.0/${leadGenId}?fields=field_data,created_time`,
+            `https://graph.facebook.com/v18.0/${leadGenId}?fields=field_data,created_time,qualification_status`,
             {
               method: 'GET',
               headers: {
@@ -107,7 +107,7 @@ export async function POST(request: NextRequest) {
           }
 
           // Map Facebook fields to contact structure
-          const contact = mapFacebookFieldsToContact(fbLead.field_data)
+          const contact = mapFacebookFieldsToContact(fbLead.field_data, fbLead.qualification_status)
           contact.facebook_id = leadGenId
           contact.facebook_form_id = formId
           contact.source = 'facebook'
@@ -247,9 +247,14 @@ export async function POST(request: NextRequest) {
   }
 }
 
-function mapFacebookFieldsToContact(fieldData: Array<{ name: string; values: string[] }> = []): Record<string, any> {
+function mapFacebookFieldsToContact(fieldData: Array<{ name: string; values: string[] }> = [], qualificationStatus?: string): Record<string, any> {
   const contact: Record<string, any> = {
     metadata: {},
+  }
+
+  // Store Facebook phase/qualification status
+  if (qualificationStatus) {
+    contact.facebook_phase = qualificationStatus
   }
 
   const fieldMap: Record<string, string> = {
