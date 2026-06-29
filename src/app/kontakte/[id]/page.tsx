@@ -8,6 +8,7 @@ import { AufgabenEditModal } from '@/components/AufgabenEditModal'
 import { AutomationControls } from '@/components/AutomationControls'
 import { ContactOverview } from '@/components/ContactOverview'
 import { StickyContactHeader } from '@/components/StickyContactHeader'
+import { NotesHistory } from '@/components/NotesHistory'
 
 interface Kontakt {
   id: string
@@ -609,50 +610,58 @@ export default function KontaktDetailPage() {
           </div>
         )}
 
-        {/* TAB: Opportunities */}
+        {/* TAB: Notizen */}
         {activeTab === 'notes' && (
-          <div className="bg-white rounded-xl border border-gray-200 p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Notizen</h2>
-            {notesEditMode ? (
-              <div className="space-y-3">
-                <textarea
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  placeholder="Notizen zum Kontakt…"
-                  className="w-full h-64 p-4 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400/40 resize-none"
-                />
-                <div className="flex gap-2">
-                  <button
-                    onClick={handleSaveNotes}
-                    disabled={notesSaving}
-                    className="flex-1 bg-yellow-400 hover:bg-yellow-500 disabled:opacity-50 disabled:cursor-not-allowed text-gray-900 font-semibold text-sm px-4 py-2.5 rounded-lg transition-colors"
-                  >
-                    {notesSaving ? 'Speichert…' : 'Speichern'}
-                  </button>
-                  <button
-                    onClick={() => {
-                      setNotesEditMode(false)
-                      setNotes(kontakt.notes || '')
-                    }}
-                    className="flex-1 border border-gray-200 text-gray-600 font-medium text-sm px-4 py-2.5 rounded-lg hover:bg-gray-50 transition-colors"
-                  >
-                    Abbrechen
+          <>
+            <div className="bg-white rounded-xl border border-gray-200 p-6">
+              <h2 className="text-lg font-semibold text-gray-900 mb-4">Notizen</h2>
+              {notesEditMode ? (
+                <div className="space-y-3">
+                  <textarea
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                    placeholder="Notizen zum Kontakt…"
+                    className="w-full h-64 p-4 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400/40 resize-none"
+                  />
+                  <div className="flex gap-2">
+                    <button
+                      onClick={handleSaveNotes}
+                      disabled={notesSaving}
+                      className="flex-1 bg-yellow-400 hover:bg-yellow-500 disabled:opacity-50 disabled:cursor-not-allowed text-gray-900 font-semibold text-sm px-4 py-2.5 rounded-lg transition-colors"
+                    >
+                      {notesSaving ? 'Speichert…' : 'Speichern'}
+                    </button>
+                    <button
+                      onClick={() => {
+                        setNotesEditMode(false)
+                        setNotes(kontakt.notes || '')
+                      }}
+                      className="flex-1 border border-gray-200 text-gray-600 font-medium text-sm px-4 py-2.5 rounded-lg hover:bg-gray-50 transition-colors"
+                    >
+                      Abbrechen
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div>
+                  {notes ? (
+                    <div className="bg-gray-50 rounded-lg p-4 whitespace-pre-wrap text-sm text-gray-700 mb-4">{notes}</div>
+                  ) : (
+                    <div className="bg-gray-50 rounded-lg p-4 text-sm text-gray-400 mb-4">Keine Notizen vorhanden.</div>
+                  )}
+                  <button onClick={() => setNotesEditMode(true)} className="text-yellow-600 hover:text-yellow-700 text-sm font-medium">
+                    Bearbeiten
                   </button>
                 </div>
-              </div>
-            ) : (
-              <div>
-                {notes ? (
-                  <div className="bg-gray-50 rounded-lg p-4 whitespace-pre-wrap text-sm text-gray-700 mb-4">{notes}</div>
-                ) : (
-                  <div className="bg-gray-50 rounded-lg p-4 text-sm text-gray-400 mb-4">Keine Notizen vorhanden.</div>
-                )}
-                <button onClick={() => setNotesEditMode(true)} className="text-yellow-600 hover:text-yellow-700 text-sm font-medium">
-                  Bearbeiten
-                </button>
-              </div>
-            )}
-          </div>
+              )}
+            </div>
+
+            {/* Notizen-Historia */}
+            <div className="mt-8">
+              <h2 className="text-lg font-semibold text-gray-900 mb-4">Notizen-Historia</h2>
+              <NotesHistory contactId={kontakt.id} />
+            </div>
+          </>
         )}
 
         {/* TAB: Dokumente */}
