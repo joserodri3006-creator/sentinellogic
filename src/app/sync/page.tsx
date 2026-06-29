@@ -113,14 +113,21 @@ export default function SyncPage() {
           .finally(() => setPreviewLoading(false))
       } else {
         setSyncing(id)
+        const startTime = Date.now()
         fetch('/api/sync/facebook-leads')
           .then(r => r.json())
-          .then(() => {
+          .then((data) => {
             setSources(prev => prev.map(s => s.id === id ? { ...s, lastSync: 'Gerade eben' } : s))
             loadSyncLog()
+            return data
           })
           .catch(console.error)
-          .finally(() => setSyncing(null))
+          .finally(() => {
+            // Minimum 2 seconds loading feedback
+            const elapsed = Date.now() - startTime
+            const delay = Math.max(0, 2000 - elapsed)
+            setTimeout(() => setSyncing(null), delay)
+          })
       }
     } else {
       setSyncing(id)
