@@ -147,6 +147,7 @@ function mapFacebookFieldsToContact(fieldData: any[] = [], qualificationStatus?:
     phone_number: 'phone_mobile',
     phone: 'phone_mobile',
     company: 'company_name',
+    company_name: 'company_name',
     city: 'city',
     state: 'state',
     zip: 'postal_code',
@@ -163,16 +164,19 @@ function mapFacebookFieldsToContact(fieldData: any[] = [], qualificationStatus?:
 
   fieldData.forEach((field) => {
     const fbName = field.name.toLowerCase()
-    const value = field.values?.[0]
+    let value = field.values?.[0]
 
     if (!value || value.trim() === '') return
 
+    // Clean value: remove bullet points and leading/trailing underscores
+    value = value.trim().replace(/^[•_\s]+|[•_\s]+$/g, '').trim()
+
     if (fbName === 'full_name') {
-      fullName = value.trim()
+      fullName = value
     } else if (fieldMap[fbName]) {
-      contact[fieldMap[fbName]] = value.trim()
+      contact[fieldMap[fbName]] = value
     } else if (customFieldMap[fbName]) {
-      contact[customFieldMap[fbName]] = value.trim()
+      contact[customFieldMap[fbName]] = value
     }
   })
 

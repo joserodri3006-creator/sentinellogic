@@ -321,16 +321,19 @@ function mapFacebookFieldsToContact(fieldData: Array<{ name: string; values: str
 
   fieldData.forEach((field) => {
     const fbName = field.name.toLowerCase()
-    const value = field.values?.[0]
+    let value = field.values?.[0]
 
     if (!value || value.trim() === '') return
 
+    // Clean value: remove bullet points and leading/trailing underscores
+    value = value.trim().replace(/^[•_\s]+|[•_\s]+$/g, '').trim()
+
     if (fieldMap[fbName]) {
-      contact[fieldMap[fbName]] = value.trim()
+      contact[fieldMap[fbName]] = value
     }
 
     // Store ALL fields in metadata for audit trail
-    contact.metadata[fbName] = value.trim()
+    contact.metadata[fbName] = value
   })
 
   // Split full_name into first_name and last_name if needed
