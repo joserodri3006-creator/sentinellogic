@@ -372,15 +372,18 @@ async function pullSyncContact(
     console.error(`[Sync] Error for ${contactId}:`, err)
 
     // Log error
-    await supabase
-      .from('dialfire_sync_log')
-      .insert({
-        contact_id: contactId,
-        dialfire_id: dialfireId,
-        sync_status: 'error',
-        error_message: String(err),
-      })
-      .catch((e: any) => console.error('Failed to log error:', e))
+    try {
+      await supabase
+        .from('dialfire_sync_log')
+        .insert({
+          contact_id: contactId,
+          dialfire_id: dialfireId,
+          sync_status: 'error',
+          error_message: String(err),
+        })
+    } catch (logErr) {
+      console.error('Failed to log error:', logErr)
+    }
 
     return {
       contact_id: contactId,
