@@ -25,6 +25,8 @@ interface ColumnVisibility {
   progress: boolean
   created: boolean
   actions: boolean
+  dialfire_campaign?: boolean
+  dialfire_task?: boolean
 }
 
 const STATUS_LABELS: Record<string, string> = {
@@ -101,6 +103,8 @@ const DEFAULT_COLUMNS: ColumnVisibility = {
   progress: true,
   created: true,
   actions: true,
+  dialfire_campaign: false,
+  dialfire_task: false,
 }
 
 export default function KontaktePage() {
@@ -610,32 +614,69 @@ export default function KontaktePage() {
       {/* Column Customization Modal */}
       {showColumnModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm max-h-[85vh] overflow-y-auto p-6">
             <h3 className="text-lg font-bold text-gray-900 mb-4">Spalten anpassen</h3>
-            <div className="space-y-3">
-              {Object.entries(visibleColumns).map(([column, visible]) => {
-                const labels: Record<string, string> = {
-                  name: 'Name',
-                  company: 'Firma',
-                  source: 'Quelle',
-                  step: 'Aktueller Schritt',
-                  progress: 'Fortschritt',
-                  created: 'Erstellt',
-                  actions: 'Aktionen',
-                }
-                return (
-                  <label key={column} className="flex items-center gap-3 cursor-pointer p-2 hover:bg-gray-50 rounded">
-                    <input
-                      type="checkbox"
-                      checked={visible}
-                      onChange={() => handleColumnToggle(column as keyof ColumnVisibility)}
-                      className="w-4 h-4 rounded"
-                    />
-                    <span className="text-sm font-medium text-gray-900">{labels[column]}</span>
-                  </label>
-                )
-              })}
+
+            {/* Standard Spalten */}
+            <div className="mb-6">
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Standard</p>
+              <div className="space-y-2">
+                {(['name', 'company', 'source', 'step', 'progress', 'created', 'actions'] as const).map((column) => {
+                  const labels: Record<string, string> = {
+                    name: 'Name',
+                    company: 'Firma',
+                    source: 'Quelle',
+                    step: 'Aktueller Schritt',
+                    progress: 'Fortschritt',
+                    created: 'Erstellt',
+                    actions: 'Aktionen',
+                  }
+                  return (
+                    <label key={column} className="flex items-center gap-3 cursor-pointer p-2 hover:bg-gray-50 rounded">
+                      <input
+                        type="checkbox"
+                        checked={visibleColumns[column]}
+                        onChange={() => handleColumnToggle(column)}
+                        className="w-4 h-4 rounded"
+                      />
+                      <span className="text-sm font-medium text-gray-900">{labels[column]}</span>
+                    </label>
+                  )
+                })}
+              </div>
             </div>
+
+            {/* DIALFIRE - PROMINENT */}
+            <div className="mb-6 p-4 bg-blue-50 border-2 border-blue-200 rounded-lg">
+              <p className="text-sm font-bold text-blue-900 mb-3">📱 Dialfire Sync</p>
+              <p className="text-xs text-blue-700 mb-3">Diese Felder sind wichtig für deine Dialfire-Integration</p>
+              <div className="space-y-2">
+                <label className="flex items-center gap-3 cursor-pointer p-2 hover:bg-blue-100 rounded">
+                  <input
+                    type="checkbox"
+                    checked={visibleColumns.dialfire_campaign || false}
+                    disabled
+                    className="w-4 h-4 rounded"
+                  />
+                  <span className="text-sm font-medium text-gray-900">Dialfire Kampagne</span>
+                  <span className="text-xs text-blue-600 ml-auto">⭐ Wichtig</span>
+                </label>
+                <label className="flex items-center gap-3 cursor-pointer p-2 hover:bg-blue-100 rounded">
+                  <input
+                    type="checkbox"
+                    checked={visibleColumns.dialfire_task || false}
+                    disabled
+                    className="w-4 h-4 rounded"
+                  />
+                  <span className="text-sm font-medium text-gray-900">Dialfire Task</span>
+                  <span className="text-xs text-blue-600 ml-auto">⭐ Wichtig</span>
+                </label>
+              </div>
+              <p className="text-xs text-blue-600 mt-3 p-2 bg-blue-100 rounded">
+                ℹ️ Diese Felder werden noch nicht in der Tabelle angezeigt. Sie werden in einem späteren Update hinzugefügt.
+              </p>
+            </div>
+
             <button
               onClick={() => setShowColumnModal(false)}
               className="w-full mt-6 bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-semibold px-4 py-2.5 rounded-lg transition-colors"
