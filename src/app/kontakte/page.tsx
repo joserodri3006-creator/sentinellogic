@@ -607,52 +607,37 @@ export default function KontaktePage() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-gray-100 bg-gray-50/80 sticky top-0">
-                {/* NAME - Hauptspalte */}
-                {visibleColumns.first_name && (
-                  <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wide px-3 sm:px-4 py-3 min-w-48">
-                    <button onClick={() => toggleSort('name')} className="flex items-center gap-1 hover:text-gray-700">
-                      Name <SortIcon field="name" />
-                    </button>
-                  </th>
-                )}
+                {/* DYNAMISCH: Loop through all visible columns except actions/progress */}
+                {Object.entries(visibleColumns)
+                  .filter(([key, visible]) => visible && key !== 'progress' && key !== 'actions')
+                  .map(([columnKey]) => {
+                    const key = columnKey as keyof ColumnVisibility
+                    const isSortable = ['first_name', 'created_at', 'status'].includes(key)
+                    const label = FIELD_LABELS[key]
+                    const isCritical = ['first_name', 'status'].includes(key)
+                    const isBlueField = key.includes('dialfire')
 
-                {/* Dynamische Spalten basierend auf ColumnVisibility */}
-                {visibleColumns.email && (
-                  <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wide px-3 sm:px-4 py-3 min-w-40 hidden sm:table-cell">
-                    E-Mail
-                  </th>
-                )}
+                    return (
+                      <th
+                        key={key}
+                        className={`text-left text-xs font-semibold ${isBlueField ? 'text-blue-600' : 'text-gray-500'} uppercase tracking-wide px-3 sm:px-4 py-3 min-w-32 ${!isCritical ? 'hidden sm:table-cell' : ''}`}
+                      >
+                        {isSortable && (key === 'first_name' || key === 'created_at') ? (
+                          <button
+                            onClick={() => toggleSort(key as 'name' | 'created_at' | 'status' | 'progress')}
+                            className="flex items-center gap-1 hover:text-gray-700"
+                          >
+                            {label} {key === 'first_name' && <SortIcon field="name" />}
+                            {key === 'created_at' && <SortIcon field="created_at" />}
+                          </button>
+                        ) : (
+                          label
+                        )}
+                      </th>
+                    )
+                  })}
 
-                {visibleColumns.phone_mobile && (
-                  <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wide px-3 sm:px-4 py-3 min-w-32 hidden md:table-cell">
-                    Mobil
-                  </th>
-                )}
-
-                {visibleColumns.company_name && (
-                  <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wide px-3 sm:px-4 py-3 min-w-40 hidden sm:table-cell">
-                    Firma
-                  </th>
-                )}
-
-                {visibleColumns.source && (
-                  <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wide px-3 sm:px-4 py-3 min-w-24 hidden md:table-cell">
-                    Quelle
-                  </th>
-                )}
-
-                {visibleColumns.status && (
-                  <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wide px-3 sm:px-4 py-3 min-w-28">
-                    Status
-                  </th>
-                )}
-
-                {visibleColumns.pipeline_stage && (
-                  <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wide px-3 sm:px-4 py-3 min-w-40 hidden lg:table-cell">
-                    Pipeline
-                  </th>
-                )}
-
+                {/* PROGRESS Column (if visible) */}
                 {visibleColumns.progress && (
                   <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wide px-3 sm:px-4 py-3 min-w-28">
                     <button onClick={() => toggleSort('progress')} className="flex items-center gap-1 hover:text-gray-700">
@@ -661,21 +646,7 @@ export default function KontaktePage() {
                   </th>
                 )}
 
-                {visibleColumns.created_at && (
-                  <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wide px-3 sm:px-4 py-3 min-w-24 hidden sm:table-cell">
-                    <button onClick={() => toggleSort('created_at')} className="flex items-center gap-1 hover:text-gray-700">
-                      Erstellt <SortIcon field="created_at" />
-                    </button>
-                  </th>
-                )}
-
-                {visibleColumns.dialfire_campaign && (
-                  <th className="text-left text-xs font-semibold text-blue-600 uppercase tracking-wide px-3 sm:px-4 py-3 min-w-32 hidden lg:table-cell" title="Dialfire Kampagne">
-                    Dialfire ⭐
-                  </th>
-                )}
-
-                {/* AKTIONEN — Immer am Ende */}
+                {/* ACTIONS Column (always at end if visible) */}
                 {visibleColumns.actions && (
                   <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wide px-2 sm:px-3 py-3 min-w-20 text-right">
                     Aktionen
@@ -702,74 +673,117 @@ export default function KontaktePage() {
                     key={kontakt.id}
                     className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors"
                   >
-                    {/* NAME - Hauptspalte */}
-                    {visibleColumns.first_name && (
-                      <td className="px-3 sm:px-4 py-3 min-w-48">
-                        <Link href={`/kontakte/${kontakt.id}`} className="group">
-                          <p className="font-semibold text-yellow-600 group-hover:underline truncate">{kontakt.first_name} {kontakt.last_name}</p>
-                          <p className="text-xs text-gray-400 mt-0.5 truncate">{kontakt.email || kontakt.id}</p>
-                        </Link>
-                      </td>
-                    )}
+                    {/* DYNAMISCH: Loop through all visible columns except progress/actions */}
+                    {Object.entries(visibleColumns)
+                      .filter(([key, visible]) => visible && key !== 'progress' && key !== 'actions')
+                      .map(([columnKey]) => {
+                        const key = columnKey as keyof ColumnVisibility
+                        const isCritical = ['first_name', 'status'].includes(key)
+                        let value: any = (kontakt as any)[key]
 
-                    {/* E-MAIL */}
-                    {visibleColumns.email && (
-                      <td className="px-3 sm:px-4 py-3 min-w-40 hidden sm:table-cell text-gray-600 truncate text-xs">
-                        {kontakt.email || '—'}
-                      </td>
-                    )}
+                        // Format value based on column type
+                        let displayContent: React.ReactNode = '—'
 
-                    {/* TELEFON MOBIL */}
-                    {visibleColumns.phone_mobile && (
-                      <td className="px-3 sm:px-4 py-3 min-w-32 hidden md:table-cell text-gray-600 truncate text-xs">
-                        {kontakt.phone_mobile || '—'}
-                      </td>
-                    )}
+                        if (key === 'first_name') {
+                          displayContent = (
+                            <Link href={`/kontakte/${kontakt.id}`} className="group">
+                              <p className="font-semibold text-yellow-600 group-hover:underline truncate">
+                                {kontakt.first_name} {kontakt.last_name}
+                              </p>
+                              <p className="text-xs text-gray-400 mt-0.5 truncate">{kontakt.email || kontakt.id}</p>
+                            </Link>
+                          )
+                        } else if (key === 'status') {
+                          displayContent = (
+                            <select
+                              value={kontakt.status}
+                              onChange={(e) => handleStatusChange(kontakt.id, e.target.value)}
+                              className="text-xs px-1.5 sm:px-2 py-1 border border-gray-200 rounded hover:bg-yellow-50 focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              {Object.entries(STATUS_LABELS).map(([optKey, label]) => (
+                                <option key={optKey} value={optKey}>
+                                  {label}
+                                </option>
+                              ))}
+                            </select>
+                          )
+                        } else if (key === 'source') {
+                          displayContent = value ? (
+                            <span
+                              className={`inline-flex text-xs font-medium px-2 py-1 rounded-full ${SOURCE_COLORS[value] || SOURCE_COLORS['manuell']}`}
+                            >
+                              {SOURCE_LABELS[value] || value}
+                            </span>
+                          ) : (
+                            '—'
+                          )
+                        } else if (key === 'pipeline_stage') {
+                          const stageLabel = getStepLabel(value)
+                          displayContent = (
+                            <span
+                              className="text-xs text-gray-700 font-medium truncate max-w-full block"
+                              title={stageLabel}
+                            >
+                              {stageLabel.length > 20 ? stageLabel.substring(0, 17) + '…' : stageLabel}
+                            </span>
+                          )
+                        } else if (key === 'created_at' || key === 'updated_at') {
+                          displayContent = value ? new Date(value).toLocaleDateString('de-DE') : '—'
+                        } else if (key === 'bestandskunde') {
+                          displayContent = value ? (
+                            <span className="inline-flex text-xs font-medium px-2 py-1 rounded-full bg-green-50 text-green-700">
+                              Ja
+                            </span>
+                          ) : (
+                            <span className="text-xs text-gray-500">Nein</span>
+                          )
+                        } else if (
+                          key.includes('dialfire') ||
+                          key.includes('facebook') ||
+                          key.includes('klicktipp')
+                        ) {
+                          // Integration fields with special styling
+                          displayContent = value ? (
+                            <span className="inline-flex items-center gap-1 px-2 py-1 bg-blue-50 text-blue-700 rounded text-xs font-medium">
+                              <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
+                              {String(value).substring(0, 25)}
+                              {String(value).length > 25 ? '…' : ''}
+                            </span>
+                          ) : (
+                            '—'
+                          )
+                        } else if (key === 'mitarbeitanzahl') {
+                          displayContent = value ? (
+                            <span className="text-xs text-gray-700 font-medium">{value.toLocaleString('de-DE')}</span>
+                          ) : (
+                            '—'
+                          )
+                        } else if (typeof value === 'boolean') {
+                          displayContent = value ? '✓' : '—'
+                        } else {
+                          // Default text rendering
+                          displayContent = value ? (
+                            <span className="text-xs text-gray-600 truncate block" title={String(value)}>
+                              {String(value).substring(0, 40)}
+                              {String(value).length > 40 ? '…' : ''}
+                            </span>
+                          ) : (
+                            '—'
+                          )
+                        }
 
-                    {/* FIRMA */}
-                    {visibleColumns.company_name && (
-                      <td className="px-3 sm:px-4 py-3 min-w-40 hidden sm:table-cell text-gray-600 truncate text-xs">
-                        {kontakt.company_name || '—'}
-                      </td>
-                    )}
+                        return (
+                          <td
+                            key={key}
+                            className={`px-3 sm:px-4 py-3 min-w-32 ${!isCritical ? 'hidden sm:table-cell' : ''}`}
+                          >
+                            {displayContent}
+                          </td>
+                        )
+                      })}
 
-                    {/* QUELLE */}
-                    {visibleColumns.source && (
-                      <td className="px-3 sm:px-4 py-3 min-w-24 hidden md:table-cell">
-                        <span className={`inline-flex text-xs font-medium px-2 py-1 rounded-full ${SOURCE_COLORS[kontakt.source || 'manuell']}`}>
-                          {SOURCE_LABELS[kontakt.source || 'manuell']}
-                        </span>
-                      </td>
-                    )}
-
-                    {/* STATUS */}
-                    {visibleColumns.status && (
-                      <td className="px-3 sm:px-4 py-3 min-w-28">
-                        <select
-                          value={kontakt.status}
-                          onChange={(e) => handleStatusChange(kontakt.id, e.target.value)}
-                          className="text-xs px-1.5 sm:px-2 py-1 border border-gray-200 rounded hover:bg-yellow-50 focus:outline-none focus:ring-2 focus:ring-yellow-400"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          {Object.entries(STATUS_LABELS).map(([key, label]) => (
-                            <option key={key} value={key}>{label}</option>
-                          ))}
-                        </select>
-                      </td>
-                    )}
-
-                    {/* PIPELINE STAGE */}
-                    {visibleColumns.pipeline_stage && (
-                      <td className="px-3 sm:px-4 py-3 min-w-40 hidden lg:table-cell">
-                        <span className="text-xs text-gray-700 font-medium truncate max-w-full block" title={getStepLabel(kontakt.pipeline_stage)}>
-                          {getStepLabel(kontakt.pipeline_stage).length > 20
-                            ? getStepLabel(kontakt.pipeline_stage).substring(0, 17) + '…'
-                            : getStepLabel(kontakt.pipeline_stage)}
-                        </span>
-                      </td>
-                    )}
-
-                    {/* FORTSCHRITT */}
+                    {/* PROGRESS Column (if visible) */}
                     {visibleColumns.progress && (
                       <td className="px-3 sm:px-4 py-3 min-w-28">
                         <div className="flex items-center gap-1.5">
@@ -788,28 +802,7 @@ export default function KontaktePage() {
                       </td>
                     )}
 
-                    {/* ERSTELLT */}
-                    {visibleColumns.created_at && (
-                      <td className="px-3 sm:px-4 py-3 min-w-24 hidden sm:table-cell text-gray-500 text-xs">
-                        {new Date(kontakt.created_at).toLocaleDateString('de-DE')}
-                      </td>
-                    )}
-
-                    {/* DIALFIRE CAMPAIGN */}
-                    {visibleColumns.dialfire_campaign && (
-                      <td className="px-3 sm:px-4 py-3 min-w-32 hidden lg:table-cell text-gray-600 text-xs">
-                        {kontakt.dialfire_campaign ? (
-                          <span className="inline-flex items-center gap-1 px-2 py-1 bg-blue-50 text-blue-700 rounded text-xs font-medium">
-                            <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
-                            {kontakt.dialfire_campaign}
-                          </span>
-                        ) : (
-                          '—'
-                        )}
-                      </td>
-                    )}
-
-                    {/* AKTIONEN */}
+                    {/* ACTIONS Column (always at end if visible) */}
                     {visibleColumns.actions && (
                       <td className="px-2 sm:px-3 py-3 min-w-20 text-right">
                         <div className="flex items-center gap-0.5 justify-end">
