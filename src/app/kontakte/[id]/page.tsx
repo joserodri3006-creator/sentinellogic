@@ -9,6 +9,7 @@ import { AutomationControls } from '@/components/AutomationControls'
 import { ContactOverview } from '@/components/ContactOverview'
 import { StickyContactHeader } from '@/components/StickyContactHeader'
 import { NotesHistory } from '@/components/NotesHistory'
+import { DialfireSyncPanel } from '@/components/DialfireSyncPanel'
 
 interface Kontakt {
   id: string
@@ -99,6 +100,7 @@ const TABS = [
   { id: 'activities', label: 'Aktivitäten', icon: '📝' },
   { id: 'tasks', label: 'Aufgaben', icon: '✓' },
   { id: 'notes', label: 'Notizen', icon: '📋' },
+  { id: 'dialfire', label: 'Dialfire', icon: '📞' },
   { id: 'documents', label: 'Dokumente', icon: '📄' },
   { id: 'automation', label: 'Automation', icon: '⚙️' },
 ]
@@ -664,6 +666,11 @@ export default function KontaktDetailPage() {
               <NotesHistory contactId={kontakt.id} />
             </div>
           </>
+        )}
+
+        {/* TAB: Dialfire */}
+        {activeTab === 'dialfire' && (
+          <DialfireSyncPanel kontakt={kontakt} />
         )}
 
         {/* TAB: Dokumente */}
