@@ -27,9 +27,9 @@ CREATE TABLE IF NOT EXISTS dialfire_sync_log (
 );
 
 -- Indexes for performance
-CREATE INDEX idx_dialfire_sync_contact ON dialfire_sync_log(contact_id);
-CREATE INDEX idx_dialfire_sync_timestamp ON dialfire_sync_log(sync_timestamp DESC);
-CREATE INDEX idx_dialfire_sync_status ON dialfire_sync_log(sync_status);
+CREATE INDEX IF NOT EXISTS idx_dialfire_sync_contact ON dialfire_sync_log(contact_id);
+CREATE INDEX IF NOT EXISTS idx_dialfire_sync_timestamp ON dialfire_sync_log(sync_timestamp DESC);
+CREATE INDEX IF NOT EXISTS idx_dialfire_sync_status ON dialfire_sync_log(sync_status);
 
 COMMENT ON TABLE dialfire_sync_log IS 'Immutable audit trail: every sync records old/new values for all changed fields';
 COMMENT ON COLUMN dialfire_sync_log.changes IS 'JSONB format: {field_name: {old: value, new: value}, ...}';
@@ -53,8 +53,8 @@ CREATE TABLE IF NOT EXISTS dialfire_sync_snapshots (
 );
 
 -- Index for lookups
-CREATE INDEX idx_dialfire_snapshots_contact ON dialfire_sync_snapshots(contact_id);
-CREATE INDEX idx_dialfire_snapshots_timestamp ON dialfire_sync_snapshots(snapshot_timestamp DESC);
+CREATE INDEX IF NOT EXISTS idx_dialfire_snapshots_contact ON dialfire_sync_snapshots(contact_id);
+CREATE INDEX IF NOT EXISTS idx_dialfire_snapshots_timestamp ON dialfire_sync_snapshots(snapshot_timestamp DESC);
 
 COMMENT ON TABLE dialfire_sync_snapshots IS 'Immutable snapshots: before/after state for rollback capability';
 
@@ -69,19 +69,19 @@ CREATE TABLE IF NOT EXISTS contact_notes_history (
   content TEXT NOT NULL,
 
   -- Source Tracking
-  source VARCHAR NOT NULL CHECK (source IN ('manual', 'dialfire_sync', 'facebook_sync', 'system')),
+  source VARCHAR NOT NULL DEFAULT 'manual' CHECK (source IN ('manual', 'dialfire_sync', 'facebook_sync', 'system')),
   source_metadata JSONB,  -- {sync_id: "...", sync_timestamp: "...", changes: {...}, ...}
 
   -- Versioning
-  version INT NOT NULL,
-  created_by VARCHAR,  -- user_id oder 'system'
+  version INT NOT NULL DEFAULT 1,
+  created_by VARCHAR DEFAULT 'system',  -- user_id oder 'system'
   created_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
 -- Indexes for queries
-CREATE INDEX idx_contact_notes_contact ON contact_notes_history(contact_id);
-CREATE INDEX idx_contact_notes_version ON contact_notes_history(contact_id, version DESC);
-CREATE INDEX idx_contact_notes_source ON contact_notes_history(source);
+CREATE INDEX IF NOT EXISTS idx_contact_notes_contact ON contact_notes_history(contact_id);
+CREATE INDEX IF NOT EXISTS idx_contact_notes_version ON contact_notes_history(contact_id, version DESC);
+CREATE INDEX IF NOT EXISTS idx_contact_notes_source ON contact_notes_history(source);
 
 COMMENT ON TABLE contact_notes_history IS 'Versioned note history: manual + auto-generated from syncs';
 COMMENT ON COLUMN contact_notes_history.source_metadata IS 'Metadata for auto-generated notes: links to sync_log_id, changes, call_info, etc.';
@@ -229,9 +229,14 @@ COMMENT ON VIEW v_dialfire_latest_sync IS 'Latest Dialfire sync info per contact
 ---
 
 -- 8. Trigger: Maintain current note in contacts.notes from latest history entry
+-- Drop trigger if exists (safe)
+DROP TRIGGER IF EXISTS update_current_notes ON contact_notes_history;
+
+-- Create or replace function
 CREATE OR REPLACE FUNCTION maintain_current_notes()
 RETURNS TRIGGER AS $$
 BEGIN
+  -- Only update if contact exists
   UPDATE contacts
   SET notes = NEW.content,
       updated_at = NOW()
@@ -240,7 +245,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-DROP TRIGGER IF EXISTS update_current_notes ON contact_notes_history;
+-- Recreate trigger
 CREATE TRIGGER update_current_notes
 AFTER INSERT ON contact_notes_history
 FOR EACH ROW
