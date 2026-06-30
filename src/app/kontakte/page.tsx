@@ -228,14 +228,14 @@ function getStepNumber(stageKey?: string): number {
 }
 
 const DEFAULT_COLUMNS: ColumnVisibility = {
-  // Kontaktinfo
+  // Kontaktinfo — KERN
   first_name: true,
   last_name: true,
-  email: true,
+  email: false,
   phone_mobile: false,
   phone_office: false,
   website: false,
-  // Unternehmensinfo
+  // Unternehmensinfo — KERN
   company_name: true,
   industry: false,
   position: false,
@@ -246,12 +246,12 @@ const DEFAULT_COLUMNS: ColumnVisibility = {
   postal_code: false,
   city: false,
   country: false,
-  // Pipeline & Status
+  // Pipeline & Status — KERN
   status: true,
   qualität: false,
   pipeline_stage: true,
   assigned_user: false,
-  // Integration
+  // Integration — KERN
   source: true,
   facebook_id: false,
   facebook_phase: false,
@@ -259,7 +259,7 @@ const DEFAULT_COLUMNS: ColumnVisibility = {
   dialfire_task: false,
   klicktipp_tags: false,
   // Metadaten
-  created_at: true,
+  created_at: false,
   updated_at: false,
   notes: false,
   bestandskunde: false,
@@ -617,10 +617,18 @@ export default function KontaktePage() {
                     const isCritical = ['first_name', 'status'].includes(key)
                     const isBlueField = key.includes('dialfire')
 
+                    // Adaptive column widths
+                    const getMinWidth = () => {
+                      if (['first_name', 'last_name'].includes(key)) return 'min-w-48'
+                      if (['company_name', 'pipeline_stage'].includes(key)) return 'min-w-40'
+                      if (['email', 'notes'].includes(key)) return 'min-w-36'
+                      return 'min-w-32'
+                    }
+
                     return (
                       <th
                         key={key}
-                        className={`text-left text-xs font-semibold ${isBlueField ? 'text-blue-600' : 'text-gray-500'} uppercase tracking-wide px-3 sm:px-4 py-3 min-w-32 ${!isCritical ? 'hidden sm:table-cell' : ''}`}
+                        className={`text-left text-xs font-semibold ${isBlueField ? 'text-blue-600' : 'text-gray-500'} uppercase tracking-wide px-3 sm:px-4 py-3 ${getMinWidth()} ${!isCritical ? 'hidden sm:table-cell' : ''}`}
                       >
                         {isSortable && (key === 'first_name' || key === 'created_at') ? (
                           <button
@@ -773,10 +781,18 @@ export default function KontaktePage() {
                           )
                         }
 
+                        // Adaptive column widths (match headers)
+                        const getTdMinWidth = () => {
+                          if (['first_name', 'last_name'].includes(key)) return 'min-w-48'
+                          if (['company_name', 'pipeline_stage'].includes(key)) return 'min-w-40'
+                          if (['email', 'notes'].includes(key)) return 'min-w-36'
+                          return 'min-w-32'
+                        }
+
                         return (
                           <td
                             key={key}
-                            className={`px-3 sm:px-4 py-3 min-w-32 ${!isCritical ? 'hidden sm:table-cell' : ''}`}
+                            className={`px-3 sm:px-4 py-3 ${getTdMinWidth()} ${!isCritical ? 'hidden sm:table-cell' : ''}`}
                           >
                             {displayContent}
                           </td>
