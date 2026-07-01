@@ -225,10 +225,7 @@ export function ContactOverview({ kontakt, onSave, isEditing = false, onEditChan
             </div>
             <Field label="Telefon Mobil" field="phone_mobile" value={getValue('phone_mobile')} onChange={handleChange} isEditing={isEditing} />
             <Field label="Telefon Büro" field="phone_office" value={getValue('phone_office')} onChange={handleChange} isEditing={isEditing} />
-            <div>
-              <p className="text-xs text-gray-500 font-semibold">Quelle</p>
-              <p className="text-sm text-gray-900 mt-1">{kontakt.source?.toUpperCase() || '—'}</p>
-            </div>
+            <Field label="Quelle" field="source" type="select" options={['facebook', 'tiktok', 'calendly', 'csv', 'email', 'manuell']} value={getValue('source')} onChange={handleChange} isEditing={isEditing} />
           </div>
           <div className="sm:col-span-2">
             <Field label="Bemerkung [Dialfire]" field="bemerkung" value={getValue('bemerkung')} onChange={handleChange} isEditing={isEditing} />
