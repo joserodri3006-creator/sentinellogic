@@ -1,0 +1,247 @@
+'use client'
+
+import { useState, useCallback, useEffect } from 'react'
+import { formatBytes, formatDate } from '@/lib/utils'
+
+interface Dokument {
+  id: string
+  file_id: string
+  file_name: string
+  original_size: number
+  compressed_size: number
+  compression_ratio: number
+  created_at: string
+}
+
+interface KontaktDokumenteTabProps {
+  kontaktId: string
+}
+
+export function KontaktDokumenteTab({ kontaktId }: KontaktDokumenteTabProps) {
+  const [dokumente, setDokumente] = useState<Dokument[]>([])
+  const [loading, setLoading] = useState(false)
+  const [uploading, setUploading] = useState(false)
+  const [dragActive, setDragActive] = useState(false)
+  const [stats, setStats] = useState({
+    count: 0,
+    totalSize: 0,
+    totalOriginalSize: 0,
+  })
+  const [error, setError] = useState<string | null>(null)
+
+  // Fetch documents on mount
+  useEffect(() => {
+    loadDokumente()
+  }, [kontaktId])
+
+  const loadDokumente = async () => {
+    try {
+      setLoading(true)
+      const res = await fetch(`/api/kontakte/${kontaktId}/dokumente`)
+      const data = await res.json()
+
+      if (data.success) {
+        setDokumente(data.dokumente || [])
+        setStats({
+          count: data.kontakt.dokumente_count,
+          totalSize: data.kontakt.dokumente_total_size,
+          totalOriginalSize: data.dokumente?.reduce((sum: number, d: Dokument) => sum + d.original_size, 0) || 0,
+        })
+      }
+    } catch (err) {
+      setError('Fehler beim Laden der Dokumente')
+      console.error(err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleDrag = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    if (e.type === 'dragenter' || e.type === 'dragover') {
+      setDragActive(true)
+    } else if (e.type === 'dragleave') {
+      setDragActive(false)
+    }
+  }
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setDragActive(false)
+
+    const files = e.dataTransfer.files
+    if (files && files.length > 0) {
+      uploadFiles(files)
+    }
+  }
+
+  const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.currentTarget.files
+    if (files && files.length > 0) {
+      uploadFiles(files)
+    }
+  }
+
+  const uploadFiles = async (files: FileList) => {
+    try {
+      setUploading(true)
+      setError(null)
+
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i]
+        const formData = new FormData()
+        formData.append('file', file)
+
+        const res = await fetch(`/api/kontakte/${kontaktId}/dokumente`, {
+          method: 'POST',
+          body: formData,
+        })
+
+        if (!res.ok) {
+          throw new Error(`Upload fehlgeschlagen: ${file.name}`)
+        }
+      }
+
+      // Reload dokumente after successful upload
+      await loadDokumente()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Upload fehlgeschlagen')
+      console.error(err)
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Header with stats */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="text-lg font-semibold text-gray-900">📄 Dokumente</h3>
+          <p className="text-sm text-gray-600 mt-1">{stats.count} Dokumente, {formatBytes(stats.totalSize)} gespeichert</p>
+        </div>
+        <a
+          href={`https://drive.google.com/drive/folders/1WGRLHNpi3XSMxZrUlDh-5L52uIm2a94R`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="px-3 py-2 text-sm font-medium text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition"
+        >
+          📁 In Google Drive öffnen →
+        </a>
+      </div>
+
+      {/* Error message */}
+      {error && (
+        <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-800 text-sm">
+          {error}
+        </div>
+      )}
+
+      {/* Upload zone */}
+      <div
+        onDragEnter={handleDrag}
+        onDragLeave={handleDrag}
+        onDragOver={handleDrag}
+        onDrop={handleDrop}
+        className={`relative border-2 border-dashed rounded-xl p-8 transition-colors ${
+          dragActive
+            ? 'border-yellow-400 bg-yellow-50'
+            : 'border-gray-300 bg-gray-50 hover:border-gray-400'
+        }`}
+      >
+        <input
+          type="file"
+          id="file-input"
+          multiple
+          onChange={handleFileInput}
+          disabled={uploading}
+          className="hidden"
+        />
+        <label
+          htmlFor="file-input"
+          className="flex flex-col items-center justify-center cursor-pointer"
+        >
+          <svg
+            className="w-12 h-12 text-gray-400 mb-3"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={1.5}
+              d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10"
+            />
+          </svg>
+          <p className="text-lg font-medium text-gray-900">
+            Dateien hochladen
+          </p>
+          <p className="text-sm text-gray-600 mt-1">
+            Ziehen Sie Dateien hierher oder klicken zum Auswählen
+          </p>
+          {uploading && (
+            <p className="text-sm text-yellow-600 mt-2">⏳ Wird hochgeladen...</p>
+          )}
+        </label>
+      </div>
+
+      {/* Documents list */}
+      {loading ? (
+        <div className="text-center py-8 text-gray-600">Wird geladen...</div>
+      ) : dokumente.length === 0 ? (
+        <div className="text-center py-8">
+          <p className="text-gray-600">Keine Dokumente vorhanden</p>
+          <p className="text-sm text-gray-500 mt-1">Laden Sie Ihr erstes Dokument oben hoch</p>
+        </div>
+      ) : (
+        <div className="border border-gray-200 rounded-xl overflow-hidden">
+          <div className="bg-gray-50 px-4 py-3 border-b border-gray-200">
+            <p className="text-sm font-semibold text-gray-900">
+              📋 Alle Dokumente ({dokumente.length})
+            </p>
+          </div>
+          <div className="divide-y divide-gray-150">
+            {dokumente.map((doc) => (
+              <div key={doc.id} className="px-4 py-3 hover:bg-gray-50 transition-colors">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-gray-900 truncate">
+                      📄 {doc.file_name}
+                    </p>
+                    <div className="flex gap-3 mt-2 text-xs text-gray-600">
+                      <span>
+                        Original: <strong>{formatBytes(doc.original_size)}</strong>
+                      </span>
+                      <span className="text-gray-400">→</span>
+                      <span>
+                        Komprimiert: <strong>{formatBytes(doc.compressed_size)}</strong>
+                      </span>
+                    </div>
+                  </div>
+                  <div className="text-right flex-shrink-0">
+                    <div className="bg-green-50 px-2 py-1 rounded text-xs font-semibold text-green-700">
+                      ↓ {doc.compression_ratio}%
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1">
+                      {formatDate(doc.created_at)}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Savings info */}
+      {dokumente.length > 0 && (
+        <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-800">
+          <strong>✓ Speicher gespart:</strong> {formatBytes(stats.totalOriginalSize - stats.totalSize)} durch Komprimierung
+        </div>
+      )}
+    </div>
+  )
+}

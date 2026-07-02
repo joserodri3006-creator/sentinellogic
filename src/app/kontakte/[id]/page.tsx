@@ -11,6 +11,7 @@ import { StickyContactHeader } from '@/components/StickyContactHeader'
 import { NotesHistory } from '@/components/NotesHistory'
 import { DialfireSyncPanel } from '@/components/DialfireSyncPanel'
 import { DialfireResponseTable } from '@/components/DialfireResponseTable'
+import { KontaktDokumenteTab } from '@/components/KontaktDokumenteTab'
 
 interface Kontakt {
   id: string
@@ -706,17 +707,7 @@ export default function KontaktDetailPage() {
         {/* TAB: Dokumente */}
         {activeTab === 'documents' && (
           <div className="bg-white rounded-xl border border-gray-200 p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Dokumente & Google Drive</h2>
-            <div className="bg-gray-50 rounded-lg p-8 text-center">
-              <div className="w-12 h-12 bg-gray-200 rounded-full flex items-center justify-center mx-auto mb-3">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                  <path d="M13 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V9z" />
-                  <polyline points="13 2 13 9 20 9" />
-                </svg>
-              </div>
-              <p className="text-gray-900 font-medium mb-1">Google Drive Integration</p>
-              <p className="text-sm text-gray-500 mb-4">Phase 2 — Dokumente automatisch aus Google Drive verknüpfen</p>
-            </div>
+            <KontaktDokumenteTab kontaktId={kontaktId} />
           </div>
         )}
       </div>

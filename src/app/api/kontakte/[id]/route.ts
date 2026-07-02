@@ -212,6 +212,22 @@ export async function DELETE(
     const supabase = createServerClient()
     const { id } = params
 
+    // Archive dokumente (Google Drive archival happens async via edge function)
+    const { error: archiveError } = await supabase
+      .from('dokumente_metadata')
+      .update({
+        ordner_archived: true,
+        kontakt_deleted_at: new Date().toISOString(),
+      })
+      .eq('kontakt_id', id)
+
+    if (archiveError) {
+      console.warn('[DELETE /api/kontakte/[id]] Dokumente-Archivierung fehlgeschlagen:', archiveError)
+      // Don't fail the delete if document archival fails - continue with contact deletion
+    } else {
+      console.log(`[DELETE /api/kontakte/[id]] Dokumente archiviert für ${id}`)
+    }
+
     // Kontakt löschen (Cascade-Delete auf tasks, opportunities, activities)
     const { error } = await supabase
       .from('contacts')
@@ -222,6 +238,9 @@ export async function DELETE(
       console.error('[DELETE /api/kontakte/[id]] Fehler:', error)
       return Response.json({ success: false, error: error.message }, { status: 500 })
     }
+
+    // Log deletion
+    await logContactDeleted(id)
 
     return Response.json({ success: true, data: { deleted: true } })
   } catch (err) {
