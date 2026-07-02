@@ -212,6 +212,13 @@ export async function DELETE(
     const supabase = createServerClient()
     const { id } = params
 
+    // Get contact before deleting (for logging)
+    const { data: kontakt } = await supabase
+      .from('contacts')
+      .select('first_name, last_name')
+      .eq('id', id)
+      .single()
+
     // Archive dokumente (Google Drive archival happens async via edge function)
     const { error: archiveError } = await supabase
       .from('dokumente_metadata')
@@ -240,7 +247,9 @@ export async function DELETE(
     }
 
     // Log deletion
-    await logContactDeleted(id)
+    if (kontakt) {
+      await logContactDeleted(id, `${kontakt.first_name} ${kontakt.last_name}`)
+    }
 
     return Response.json({ success: true, data: { deleted: true } })
   } catch (err) {
